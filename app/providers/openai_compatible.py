@@ -48,13 +48,8 @@ class OpenAICompatibleAdapter:
 
     async def send(self, provider_payload: dict[str, Any]) -> ProviderResponse:
         if provider_payload.get("stream"):
-            # Streaming returns an async iterator of chunks, not a single
-            # response — that doesn't fit this method's signature. Wiring
-            # a streaming path through the SDK is deliberately deferred
-            # to the streaming.py step on the roadmap, not an oversight.
-            raise NotImplementedError(
-                "Streaming goes through a separate path — not yet wired "
-                "up (see streaming.py)."
+            raise ValueError(
+                "Use stream() for streaming requests, not send()."
             )
 
         try:
@@ -63,6 +58,25 @@ class OpenAICompatibleAdapter:
             raise ProviderError(str(exc)) from exc
 
         return ProviderResponse(status_code=200, payload=response.model_dump())
+
+    async def stream(self, provider_payload: dict[str, Any]):
+        try:
+            stream = await self._client.chat.completions.create(**provider_payload)
+            async for chunk in stream:
+                yield chunk.model_dump()
+        except APIError as exc:
+            raise ProviderError(str(exc)) from exc
+
+    def extract_stream_usage(self, last_chunk: dict[str, Any]) -> Usage:
+        usage = last_chunk.get("usage")
+        if not usage:
+            return Usage.zero()
+
+        return Usage(
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+        )
 
     def extract_usage(self, provider_response: ProviderResponse) -> Usage:
         usage = provider_response.payload.get("usage")

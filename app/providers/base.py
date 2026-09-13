@@ -10,9 +10,7 @@ talks to InternalRequest and Usage only.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
-
-
+from typing import Any, AsyncIterator, Protocol, runtime_checkable
 @dataclass(frozen=True)
 class InternalRequest:
     """Provider-agnostic representation of an inbound completion request."""
@@ -102,4 +100,18 @@ class ProviderAdapter(Protocol):
         the reservation is trued up against real usage once the stream
         closes, so an overestimate just means a temporary over-reserve,
         not a lost charge."""
+        ...
+    async def stream(self, provider_payload: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        """Yields raw provider chunks for a streaming request. Separate
+        from send() rather than a flag on it, because a stream is
+        fundamentally a different shape (async generator vs. single
+        awaited value) — forcing both into one method signature was the
+        wrong fit, which is why send() explicitly rejected stream=True."""
+        ...
+
+    def extract_stream_usage(self, last_chunk: dict[str, Any]) -> Usage:
+        """Normalizes usage from the final chunk of a stream. Requires
+        the provider to actually include usage on the last chunk (see
+        stream_options in openai_compatible.py) — returns Usage.zero()
+        if it's missing, same contract as extract_usage()."""
         ...
