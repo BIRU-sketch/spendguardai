@@ -1,8 +1,10 @@
 """
-Gateway entrypoint. Auth is now enforced on every request. Streaming is
-now wired end-to-end at the transport level — usage from a completed
-stream is extracted but not yet fed into any quota/ledger logic, since
-those don't exist yet. That's the next roadmap step, not this one.
+Gateway entrypoint. Auth is now enforced on every request. Quota is now
+enforced too — check_and_reserve happens right after auth resolves, before
+either the streaming or non-streaming path ever touches the adapter.
+Streaming is wired end-to-end at the transport level — usage from a
+completed stream is extracted but not yet fed into the ledger, since
+ledger.py doesn't exist yet. That's the next roadmap step, not this one.
 """
 
 from __future__ import annotations
@@ -14,9 +16,11 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from dotenv import load_dotenv
-from app.auth import InMemoryAPIKeyStore, Project, extract_api_key,AuthError
+from app.auth import InMemoryAPIKeyStore, Project, extract_api_key, AuthError
 from app.providers.base import InternalRequest, ProviderError
 from app.providers.openai_compatible import OpenAICompatibleAdapter
+from app.quota import InMemoryQuotaStore
+
 load_dotenv()
 app = FastAPI(title="SpendGuard AI — gateway")
 
@@ -25,6 +29,19 @@ _adapter = OpenAICompatibleAdapter(
     api_key=os.getenv("UPSTREAM_BASE_KEY"),
 )
 _key_store = InMemoryAPIKeyStore()
+_quota_store = InMemoryQuotaStore()
+
+# Flat placeholder cost per request until real per-token pricing exists —
+# intentionally crude, just needs to prove the circuit breaker works.
+_ESTIMATED_COST_CENTS = 3
+
+
+@app.on_event("startup")
+async def seed_test_balance():
+    # Placeholder for real budget provisioning (belongs to the future
+    # signup/dashboard flow). Seeds the test project so the circuit
+    # breaker has something real to trip against.
+    await _quota_store.set_balance("local-dev", 3)
 
 
 async def get_current_project(authorization: str | None = Header(default=None)) -> Project:
@@ -52,6 +69,11 @@ def _build_internal_request(body: dict, stream: bool) -> InternalRequest:
 
 @app.post("/chat/completions")
 async def chat_completions(body: dict, project: Project = Depends(get_current_project)):
+    quota_result = await _quota_store.check_and_reserve(project.project_id, _ESTIMATED_COST_CENTS)
+    print(quota_result.allowed)
+    if not quota_result.allowed:
+        raise HTTPException(status_code=429, detail="Quota exceeded")
+
     stream = bool(body.get("stream"))
     internal_req = _build_internal_request(body, stream=stream)
     provider_payload = _adapter.translate_request(internal_req)
@@ -67,7 +89,7 @@ async def chat_completions(body: dict, project: Project = Depends(get_current_pr
     except ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    # Extracted but unused until quota.py/ledger.py exist — see module docstring.
+    # Extracted but unused until ledger.py exists — see module docstring.
     _adapter.extract_usage(response)
 
     return JSONResponse(status_code=response.status_code, content=response.payload)
