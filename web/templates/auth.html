@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SpendGuard AI — Authentication</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+          <path class="logo-shield" d="M21 2L4 8v10c0 9.5 6.5 17.5 17 20 10.5-2.5 17-10.5 17-20V8L21 2z"/>
+          <text class="logo-dollar" x="21" y="28" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle">$</text>
+          <path class="logo-guards" d="M8 12l4 4M8 18l4 4"/>
+          <path class="logo-guards" d="M34 12l-4 4M34 18l-4 4"/>
+          <path class="logo-guards" d="M14 6l2 3M28 6l-2 3"/>
+        </svg>
+      </div>
+      SpendGuard
+    </div>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#how">How it works</a></li>
+      <li><a href="/#pricing">Pricing</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1>Welcome to SpendGuard</h1>
+      <p>Sign in to manage your API spending</p>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-tab="signin">Sign In</div>
+      <div class="auth-tab" data-tab="signup">Sign Up</div>
+    </div>
+
+    <div class="success-message" id="success-message">
+      Authentication successful! Redirecting...
+    </div>
+
+    <form class="auth-form active" id="signin-form" action="/auth/signin" method="POST">
+      <div class="form-group">
+        <label for="signin-email">Email</label>
+        <input type="email" id="signin-email" name="email" placeholder="you@example.com" required>
+        <div class="error-message" id="signin-email-error">Please enter a valid email</div>
+      </div>
+
+      <div class="form-group">
+        <label for="signin-password">Password</label>
+        <input type="password" id="signin-password" name="password" placeholder="••••••••" required>
+        <div class="error-message" id="signin-password-error">Password is required</div>
+      </div>
+
+      <button type="submit" class="btn-submit">Sign In</button>
+
+      <div class="auth-footer">
+        <p>Don't have an account? <a href="#" id="switch-to-signup">Sign up</a></p>
+      </div>
+    </form>
+
+    <form class="auth-form" id="signup-form" action="/auth/signup" method="POST">
+      <div class="form-group">
+        <label for="signup-name">Full Name</label>
+        <input type="text" id="signup-name" name="name" placeholder="John Doe" required>
+        <div class="error-message" id="signup-name-error">Please enter your name</div>
+      </div>
+
+      <div class="form-group">
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" name="email" placeholder="you@example.com" required>
+        <div class="error-message" id="signup-email-error">Please enter a valid email</div>
+      </div>
+
+      <div class="form-group">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" name="password" placeholder="••••••••" required>
+        <div class="error-message" id="signup-password-error">Password must be at least 8 characters</div>
+      </div>
+
+      <div class="form-group">
+        <label for="signup-confirm-password">Confirm Password</label>
+        <input type="password" id="signup-confirm-password" name="confirm_password" placeholder="••••••••" required>
+        <div class="error-message" id="signup-confirm-password-error">Passwords do not match</div>
+      </div>
+
+      <button type="submit" class="btn-submit">Create Account</button>
+
+      <div class="auth-footer">
+        <p>Already have an account? <a href="#" id="switch-to-signin">Sign in</a></p>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>
