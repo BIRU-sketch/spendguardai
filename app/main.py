@@ -19,9 +19,13 @@ from dotenv import load_dotenv
 from app.auth import InMemoryAPIKeyStore, Project, extract_api_key, AuthError
 from app.providers.base import InternalRequest, ProviderError
 from app.providers.openai_compatible import OpenAICompatibleAdapter
-from app.quota import InMemoryQuotaStore
-
+from app.quota import RedisQuotaStore  
+from app.ledger import Ledger
+_ledger = Ledger(database_url="postgresql://postgres.wvkzmmjbmdqnkbnvntpo:1234509876%21%40%23%24%25%29%28%2A%26%5E@aws-1-eu-west-1.pooler.supabase.com:6543/postgres")
+import time
 load_dotenv()
+_quota_store = RedisQuotaStore(redis_url=os.getenv("REDIS_URL")) 
+
 app = FastAPI(title="SpendGuard AI — gateway")
 
 _adapter = OpenAICompatibleAdapter(
@@ -29,11 +33,11 @@ _adapter = OpenAICompatibleAdapter(
     api_key=os.getenv("UPSTREAM_BASE_KEY"),
 )
 _key_store = InMemoryAPIKeyStore()
-_quota_store = InMemoryQuotaStore()
+_quota_store = RedisQuotaStore(redis_url=os.getenv("REDIS_URL"))  # was: InMemoryQuotaStore()
 
 # Flat placeholder cost per request until real per-token pricing exists —
 # intentionally crude, just needs to prove the circuit breaker works.
-_ESTIMATED_COST_CENTS = 3
+_ESTIMATED_COST_CENTS = 1
 
 
 @app.on_event("startup")
@@ -42,6 +46,7 @@ async def seed_test_balance():
     # signup/dashboard flow). Seeds the test project so the circuit
     # breaker has something real to trip against.
     await _quota_store.set_balance("local-dev", 3)
+    await _ledger.start()
 
 
 async def get_current_project(authorization: str | None = Header(default=None)) -> Project:
@@ -69,7 +74,10 @@ def _build_internal_request(body: dict, stream: bool) -> InternalRequest:
 
 @app.post("/chat/completions")
 async def chat_completions(body: dict, project: Project = Depends(get_current_project)):
+    t0= time.perf_counter()
     quota_result = await _quota_store.check_and_reserve(project.project_id, _ESTIMATED_COST_CENTS)
+    t1= time.perf_counter()
+    print(f"[timing] quota check: {(t1 - t0) * 1000:.0f}ms")
     print(quota_result.allowed)
     if not quota_result.allowed:
         raise HTTPException(status_code=429, detail="Quota exceeded")
@@ -90,7 +98,8 @@ async def chat_completions(body: dict, project: Project = Depends(get_current_pr
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     # Extracted but unused until ledger.py exists — see module docstring.
-    _adapter.extract_usage(response)
+    usage=_adapter.extract_usage(response)
+    _ledger.record(project.project_id, end_user_id=None, model=body["model"], usage=usage)
 
     return JSONResponse(status_code=response.status_code, content=response.payload)
 
@@ -111,11 +120,13 @@ async def _stream_response(provider_payload: dict, project: Project):
         # Logged only for now — will feed the reservation true-up in
         # streaming.py once that step exists.
         usage = _adapter.extract_stream_usage(last_chunk)
-        print(f"[stream complete] project={project.project_id} usage={usage}")
+        _ledger.record(project.project_id, end_user_id=None, model=provider_payload.model, usage=usage)
 
     yield "data: [DONE]\n\n"
 
-
+@app.on_event("shutdown")
+async def shutdown():
+    await _ledger.stop()
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
