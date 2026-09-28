@@ -1,4 +1,3 @@
-// Tab switching
 const tabs = document.querySelectorAll('.auth-tab');
 const forms = document.querySelectorAll('.auth-form');
 const switchToSignup = document.getElementById('switch-to-signup');

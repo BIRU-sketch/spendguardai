@@ -1,6 +1,8 @@
 fastapi
-uvicorn
+uvicorn[standard]
 redis
 asyncpg
 httpx
-asyncpg
+stripe>=8.0.0
+python-dotenv
+python-multipart
