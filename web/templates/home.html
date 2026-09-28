@@ -3,1461 +3,1235 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SpendGuard AI — stop the bill before it happens</title>
+<title>SpendGuard AI — Budget control & microbilling for LLM apps</title>
+<meta name="description" content="SpendGuard sits in front of every LLM call. Atomic pre-flight quota checks, end-user microbilling via Chapa, fail-closed enforcement — before the bill happens." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* ================================================================
+     Color & type system — matches SpendGuard dashboard aesthetic.
+     Calm, professional: no gimmick colors, one accent, one semantic
+     red/green pair used only for state (blocked / flowing).
+     ================================================================ */
   :root {
-    --bg: #FAFAF7;
-    --ink: #15171B;
-    --ink-muted: #5B6069;
-    --line: #DEDCD3;
-    --panel: #15171B;
-    --panel-line: #33363D;
-    --panel-text: #F2F1EC;
-    --panel-text-muted: #9096A0;
-    --red: #E8432D;
-    --green: #1F8F5E;
-    --green-bright: #3FD98C;
-    --font-display: 'Archivo', sans-serif;
-    --font-body: 'IBM Plex Sans', sans-serif;
-    --font-mono: 'IBM Plex Mono', monospace;
+    --bg:           #f6f7f9;
+    --panel:        #ffffff;
+    --panel-2:      #fbfbfc;
+    --ink:          #17191f;
+    --ink-2:        #2a2e37;
+    --muted:        #6f7480;
+    --line:         #e5e7eb;
+    --line-2:       #eceef1;
+
+    --accent:       #6d5dfc;
+    --accent-2:     #5544ec;
+    --accent-soft:  #efedff;
+    --accent-grad:  linear-gradient(135deg, #6d5dfc 0%, #8d80ff 100%);
+
+    --green:        #159b68;
+    --green-soft:   #e7f7f0;
+    --red:          #d74747;
+    --red-soft:     #fdeaea;
+    --amber:        #c77d09;
+    --amber-soft:   #fff4df;
+
+    --shadow-sm:    0 1px 2px rgba(26,29,36,.04);
+    --shadow:       0 10px 30px rgba(26,29,36,.06);
+    --shadow-lg:    0 24px 60px -20px rgba(26,29,36,.18);
+    --radius:       14px;
+    --radius-lg:    18px;
+
+    --font-sans:    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html {
-    scroll-behavior: smooth;
-  }
-
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
   body {
-    background: var(--bg);
+    font-family: var(--font-sans);
     color: var(--ink);
-    font-family: var(--font-body);
-    line-height: 1.6;
+    background: var(--bg);
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-    position: relative;
+    text-rendering: optimizeLegibility;
   }
-
-  /* Animated background gradient */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: 
-      radial-gradient(ellipse at 20% 20%, rgba(232, 67, 45, 0.03) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 80%, rgba(63, 217, 140, 0.03) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, rgba(21, 23, 27, 0.02) 0%, transparent 70%);
-    animation: bgShift 20s ease-in-out infinite;
-    pointer-events: none;
-    z-index: -1;
-  }
-
-  @keyframes bgShift {
-    0%, 100% { transform: scale(1) rotate(0deg); }
-    50% { transform: scale(1.1) rotate(3deg); }
-  }
-
-  a { color: inherit; }
+  img, svg { display: block; max-width: 100%; }
+  a { color: inherit; text-decoration: none; }
+  code, pre { font-family: var(--font-mono); }
 
   .wrap {
-    max-width: 1120px;
+    max-width: 1160px;
     margin: 0 auto;
-    padding: 0 32px;
+    padding: 0 28px;
   }
 
-  /* ---------- nav ---------- */
-  nav {
-    padding: 26px 0;
-    border-bottom: 2px solid var(--ink);
+  /* ========================= Nav ================================= */
+  .nav {
     position: sticky;
-    top: 0;
-    background: rgba(250, 250, 247, 0.95);
-    backdrop-filter: blur(10px);
-    z-index: 1000;
-    animation: slideDown 0.8s ease-out;
+    top: 0; z-index: 50;
+    background: rgba(246,247,249,.82);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--line-2);
   }
-
-  @keyframes slideDown {
-    from { transform: translateY(-100%); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 68px;
   }
-
-  /* Particle effect for nav */
-  nav::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--red), transparent);
-    background-size: 200% 100%;
-    animation: navLine 3s linear infinite;
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; letter-spacing: -0.02em;
+    font-size: 15.5px; color: var(--ink);
   }
-
-  @keyframes navLine {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+  .brand-mark {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: var(--accent-grad);
+    display: grid; place-items: center;
+    box-shadow: 0 6px 16px rgba(109,93,252,.28);
   }
-
-  nav .wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .brand-mark svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2; fill: none; }
+  .nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; }
+  .nav-links a {
+    font-size: 14px; color: var(--muted); font-weight: 500;
+    transition: color .15s ease;
   }
-  .logo {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 1.2rem;
-    letter-spacing: -0.01em;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    transition: transform 0.3s ease;
-  }
-  .logo:hover { transform: scale(1.05); }
-  
-  .logo-icon {
-    width: 42px;
-    height: 42px;
-    position: relative;
-  }
-  
-  .logo-icon svg {
-    width: 100%;
-    height: 100%;
-    filter: drop-shadow(0 2px 4px rgba(232, 67, 45, 0.3));
-    transition: filter 0.3s ease;
-    animation: logoFloat 3s ease-in-out infinite;
-  }
-  
-  @keyframes logoFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-3px); }
-  }
-  
-  .logo:hover .logo-icon svg {
-    filter: drop-shadow(0 4px 8px rgba(232, 67, 45, 0.5));
-  }
-  
-  .logo-shield {
-    fill: var(--panel);
-    stroke: var(--red);
-    stroke-width: 2;
-    transition: all 0.3s ease;
-    animation: shieldPulse 4s ease-in-out infinite;
-  }
-  
-  @keyframes shieldPulse {
-    0%, 100% { stroke-width: 2; }
-    50% { stroke-width: 2.5; }
-  }
-  
-  .logo-dollar {
-    fill: var(--green-bright);
-    transition: all 0.3s ease;
-    animation: dollarGlow 3s ease-in-out infinite;
-  }
-  
-  @keyframes dollarGlow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
-  }
-  
-  .logo-guards {
-    stroke: var(--red);
-    stroke-width: 2;
-    fill: none;
-    stroke-linecap: round;
-    transition: all 0.3s ease;
-    animation: guardsPulse 2s ease-in-out infinite;
-  }
-  
-  @keyframes guardsPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-  }
-  
-  .logo:hover .logo-shield {
-    stroke: var(--green-bright);
-  }
-  
-  .logo:hover .logo-dollar {
-    fill: var(--red);
-  }
-  
-  .logo:hover .logo-guards {
-    stroke: var(--green-bright);
-  }
-
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-  }
-
-  nav ul {
-    list-style: none;
-    display: flex;
-    gap: 32px;
-    font-size: 0.95rem;
-    color: var(--ink-muted);
-  }
-  nav ul a {
-    position: relative;
-    transition: color 0.3s ease;
-  }
-  nav ul a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: var(--red);
-    transition: width 0.3s ease;
-  }
-  nav ul a:hover { color: var(--ink); }
-  nav ul a:hover::after { width: 100%; }
-
+  .nav-links a:hover { color: var(--ink); }
   .nav-cta {
-    font-family: var(--font-body);
-    font-weight: 500;
-    font-size: 0.9rem;
-    padding: 10px 18px;
-    background: var(--ink);
-    color: var(--bg);
-    border-radius: 3px;
-    white-space: nowrap;
-    transition: all 0.3s ease;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 38px; padding: 0 16px;
+    background: var(--ink); color: #fff;
+    border-radius: 9px;
+    font-size: 13.5px; font-weight: 600;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .nav-cta:hover { background: var(--accent-2); transform: translateY(-1px); }
+  .nav-ghost {
+    display: inline-flex; align-items: center;
+    height: 38px; padding: 0 14px;
+    color: var(--ink-2); font-size: 13.5px; font-weight: 500;
+    border-radius: 9px;
+    transition: background .15s ease;
+  }
+  .nav-ghost:hover { background: var(--line-2); }
+  .nav-right { display: flex; align-items: center; gap: 8px; }
+
+  @media (max-width: 780px) {
+    .nav-links { display: none; }
+  }
+
+  /* ========================= Hero ================================ */
+  .hero {
+    padding: 88px 0 104px;
     position: relative;
     overflow: hidden;
   }
-  .nav-cta::before {
+  /* Soft radial backdrop — loads once, no continuous animation */
+  .hero::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s ease;
-  }
-  .nav-cta:hover { 
-    background: var(--red); 
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(232, 67, 45, 0.3);
-  }
-  .nav-cta:hover::before { left: 100%; }
-  .nav-cta:link, .nav-cta:visited { color: var(--bg); }
-
-  @media (max-width: 720px) {
-    nav ul { display: none; }
-  }
-
-  /* ---------- hero ---------- */
-  header.hero {
-    padding: 88px 0 96px;
-    position: relative;
+    top: -260px; left: 50%; transform: translateX(-50%);
+    width: 980px; height: 980px;
+    background: radial-gradient(closest-side, rgba(109,93,252,.10), transparent 70%);
+    pointer-events: none; z-index: 0;
   }
   .hero-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 64px;
-    align-items: center;
+    position: relative; z-index: 1;
+    display: grid; grid-template-columns: 1.05fr 1fr;
+    gap: 72px; align-items: center;
   }
-  @media (max-width: 900px) {
-    .hero-grid { grid-template-columns: 1fr; }
+  @media (max-width: 940px) {
+    .hero { padding: 64px 0 80px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 48px; }
   }
 
-  h1 {
-    font-family: var(--font-display);
-    font-size: clamp(2.2rem, 4.2vw, 3.2rem);
-    line-height: 1.1;
-    letter-spacing: -0.015em;
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    background: var(--accent-soft); color: var(--accent-2);
+    font-size: 12.5px; font-weight: 600;
+    border-radius: 999px;
+    letter-spacing: -0.005em;
+  }
+  .eyebrow .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(109,93,252,.18);
+  }
+
+  h1.hero-title {
+    margin: 18px 0 0;
+    font-size: clamp(2.35rem, 4.6vw, 3.55rem);
+    line-height: 1.08;
+    letter-spacing: -0.028em;
     font-weight: 800;
-    max-width: 14ch;
-    opacity: 0;
-    animation: fadeInUp 1s ease-out 0.3s forwards;
-    background: linear-gradient(135deg, var(--ink) 0%, var(--ink-muted) 50%, var(--ink) 100%);
+    color: var(--ink);
+    max-width: 16ch;
+  }
+  h1.hero-title .grad {
+    background: var(--accent-grad);
     -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     background-clip: text;
-    background-size: 200% 200%;
-    animation: fadeInUp 1s ease-out 0.3s forwards, textShine 5s ease-in-out 1.3s infinite;
+    -webkit-text-fill-color: transparent;
   }
-
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes textShine {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
-
   .hero-sub {
-    margin-top: 22px;
-    color: var(--ink-muted);
+    margin: 20px 0 0;
+    color: var(--muted);
     font-size: 1.08rem;
-    max-width: 44ch;
-    opacity: 0;
-    animation: fadeInUp 1s ease-out 0.5s forwards;
+    max-width: 52ch;
   }
-
-  .hero-actions {
-    margin-top: 34px;
-    display: flex;
-    gap: 14px;
-    flex-wrap: wrap;
-    opacity: 0;
-    animation: fadeInUp 1s ease-out 0.7s forwards;
+  .hero-cta {
+    margin-top: 32px;
+    display: flex; gap: 10px; flex-wrap: wrap;
   }
-
-  .btn-primary, .btn-secondary {
-    font-family: var(--font-body);
-    font-size: 0.97rem;
-    font-weight: 500;
-    padding: 13px 22px;
-    border-radius: 3px;
-    cursor: pointer;
-    border: 2px solid var(--ink);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    text-decoration: none;
-    display: inline-block;
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 46px; padding: 0 20px;
+    border-radius: 10px;
+    font-size: 14.5px; font-weight: 600;
+    cursor: pointer; border: 0;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
   }
   .btn-primary {
-    background: var(--ink);
-    color: var(--bg);
+    background: var(--accent); color: #fff;
+    box-shadow: 0 10px 22px -10px rgba(109,93,252,.55);
   }
-  .btn-primary::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    transition: width 0.6s ease, height 0.6s ease;
+  .btn-primary:hover { background: var(--accent-2); transform: translateY(-1px); box-shadow: 0 14px 28px -10px rgba(85,68,236,.55); }
+  .btn-primary svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; fill: none; }
+  .btn-ghost {
+    background: var(--panel); color: var(--ink-2);
+    border: 1px solid var(--line);
   }
-  .btn-primary:hover::after {
-    width: 300px;
-    height: 300px;
-  }
-  .btn-primary:hover { 
-    background: var(--red); 
-    border-color: var(--red);
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 8px 25px rgba(232, 67, 45, 0.4);
-  }
-  .btn-primary:active { transform: translateY(-1px) scale(0.98); }
-  .btn-primary:link, .btn-primary:visited { color: var(--bg); }
-  .btn-secondary {
-    background: transparent;
-    color: var(--ink);
-  }
-  .btn-secondary:hover { 
-    border-color: var(--red); 
-    color: var(--red);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(232, 67, 45, 0.2);
-  }
-  .btn-secondary:link, .btn-secondary:visited { color: var(--ink); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent-2); }
 
-  /* ---------- meter panel: 3D floating card with glow ---------- */
-  .meter-panel {
-    background: var(--panel);
-    color: var(--panel-text);
-    border-radius: 12px;
-    padding: 26px 26px 22px;
-    box-shadow: 
-      0 25px 50px -12px rgba(21, 23, 27, 0.5),
-      0 0 0 1px rgba(255, 255, 255, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transform: perspective(1000px) rotateY(-5deg) rotateX(5deg);
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    animation: float 6s ease-in-out infinite, panelEnter 1s ease-out 0.9s forwards;
-    opacity: 0;
+  .hero-meta {
+    margin-top: 26px;
+    display: flex; gap: 22px; flex-wrap: wrap;
+    font-size: 13px; color: var(--muted);
+  }
+  .hero-meta span { display: inline-flex; align-items: center; gap: 7px; }
+  .hero-meta svg { width: 14px; height: 14px; stroke: var(--green); stroke-width: 2.2; fill: none; }
+
+  /* ---- Hero visual: animated request terminal ---- */
+  .terminal {
     position: relative;
-  }
-
-  @keyframes panelEnter {
-    from { opacity: 0; transform: perspective(1000px) rotateY(-15deg) rotateX(15deg) translateZ(-50px); }
-    to { opacity: 1; transform: perspective(1000px) rotateY(-5deg) rotateX(5deg) translateZ(0); }
-  }
-
-  @keyframes float {
-    0%, 100% { transform: perspective(1000px) rotateY(-5deg) rotateX(5deg) translateY(0); }
-    50% { transform: perspective(1000px) rotateY(-3deg) rotateX(3deg) translateY(-10px); }
-  }
-
-  /* Particle effect around meter panel */
-  .meter-panel::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(63, 217, 140, 0.1) 0%, transparent 50%);
-    animation: particleRotate 10s linear infinite;
-    pointer-events: none;
-  }
-
-  @keyframes particleRotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
-  .meter-panel:hover {
-    transform: perspective(1000px) rotateY(0deg) rotateX(0deg) translateY(-15px) scale(1.02);
-    box-shadow: 
-      0 35px 60px -15px rgba(21, 23, 27, 0.6),
-      0 0 0 1px rgba(255, 255, 255, 0.15),
-      0 0 40px rgba(63, 217, 140, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  }
-
-  .meter-panel::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: linear-gradient(45deg, var(--red), var(--green-bright), var(--red));
-    border-radius: 14px;
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    animation: borderGlow 3s linear infinite;
-    background-size: 400% 400%;
-  }
-
-  @keyframes borderGlow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  .meter-panel:hover::before { opacity: 0.6; }
-
-  .meter-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    font-family: var(--font-mono);
-    color: var(--panel-text-muted);
-    margin-bottom: 14px;
-  }
-  #meter-time {
-    animation: blink 2s ease-in-out infinite;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  .meter-track {
-    width: 100%;
-    height: 14px;
-    background: #0B0C0E;
-    border-radius: 7px;
+    background: #111216;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,.04);
     overflow: hidden;
-    border: 1px solid var(--panel-line);
-    position: relative;
   }
-  .meter-track::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-    animation: shimmer 2s linear infinite;
+  .terminal-bar {
+    height: 40px;
+    padding: 0 14px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #24262c;
+    background: #15161b;
   }
-
-  @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
-
-  .meter-fill {
-    height: 100%;
-    width: 100%;
-    background: linear-gradient(90deg, var(--green), var(--green-bright));
-    border-radius: 7px;
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
-    position: relative;
-    box-shadow: 0 0 20px rgba(63, 217, 140, 0.5);
-  }
-  .meter-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-    animation: fillShine 1.5s ease-in-out infinite;
-  }
-
-  @keyframes fillShine {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 1; }
-  }
-
-  .meter-fill.tripped { 
-    background: linear-gradient(90deg, #c41e1e, var(--red));
-    box-shadow: 0 0 30px rgba(232, 67, 45, 0.6);
-    animation: shake 0.5s ease-in-out;
-  }
-
-  @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-  }
-
-  .meter-readout {
-    margin-top: 20px;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-  }
-  .meter-amount {
+  .dot-r, .dot-y, .dot-g { width: 11px; height: 11px; border-radius: 50%; }
+  .dot-r { background: #ff5f56; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #27c93f; }
+  .terminal-title {
+    margin-left: 12px;
     font-family: var(--font-mono);
-    font-size: 2rem;
-    font-weight: 500;
-    text-shadow: 0 0 20px rgba(63, 217, 140, 0.3);
-    transition: all 0.3s ease;
+    font-size: 11.5px; color: #8b90a0; letter-spacing: .02em;
   }
-  .meter-amount.update {
-    animation: amountPop 0.3s ease;
-  }
-
-  @keyframes amountPop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
-  }
-
-  .meter-status {
+  .terminal-body {
+    padding: 20px 22px 22px;
     font-family: var(--font-mono);
-    font-size: 0.82rem;
-    padding: 4px 10px;
-    border-radius: 3px;
-    background: rgba(63, 217, 140, 0.15);
-    color: var(--green-bright);
-    border: 1px solid rgba(63, 217, 140, 0.3);
-    transition: all 0.3s ease;
+    font-size: 12.5px; line-height: 1.7;
+    color: #d7d9df;
+    min-height: 340px;
+    overflow: hidden;
   }
-  .meter-status.blocked {
-    background: rgba(232, 67, 45, 0.18);
-    color: var(--red);
-    border-color: rgba(232, 67, 45, 0.4);
-    animation: statusPulse 1s ease-in-out infinite;
+  .txn { opacity: 0; transform: translateY(4px); transition: opacity .35s ease, transform .35s ease; }
+  .txn.in { opacity: 1; transform: translateY(0); }
+  .txn .t { color: #6f7480; margin-right: 10px; }
+  .txn .tag {
+    display: inline-block;
+    padding: 1px 7px; border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+    margin-right: 8px;
   }
+  .txn .tag-ok  { background: rgba(21,155,104,.15); color: #3fd98c; }
+  .txn .tag-block { background: rgba(215,71,71,.18); color: #ff8278; }
+  .txn .muted { color: #6f7480; }
+  .txn .kv { color: #c4b9ff; }
+  .txn .sep { color: #3e424d; margin: 8px 0 10px; border-top: 1px dashed #2a2d34; }
 
-  @keyframes statusPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(232, 67, 45, 0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(232, 67, 45, 0); }
+  .summary {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 11px;
+    background: linear-gradient(180deg, #17191f 0%, #13141a 100%);
+    border: 1px solid #26282e;
+    opacity: 0; transform: translateY(4px);
+    transition: opacity .35s ease, transform .35s ease;
   }
-
-  .meter-log {
-    margin-top: 20px;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--panel-text-muted);
-    border-top: 1px solid var(--panel-line);
-    padding-top: 16px;
-    min-height: 108px;
-    max-height: 150px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--panel-line) transparent;
+  .summary.in { opacity: 1; transform: translateY(0); }
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; color: #8b90a0;
   }
-  .meter-log::-webkit-scrollbar { width: 4px; }
-  .meter-log::-webkit-scrollbar-track { background: transparent; }
-  .meter-log::-webkit-scrollbar-thumb { background: var(--panel-line); border-radius: 2px; }
-  
-  .meter-log div { 
-    padding: 2px 0; 
-    opacity: 0;
-    animation: slideInLeft 0.3s ease forwards;
+  .summary-row + .summary-row { margin-top: 6px; }
+  .summary-row b {
+    font-family: var(--font-mono); font-weight: 500; color: #eee;
   }
-
-  @keyframes slideInLeft {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  .meter-log .blocked-line { 
-    color: var(--red); 
-    font-weight: 500;
-    animation: slideInLeft 0.3s ease, glitch 0.3s ease;
-  }
-
-  @keyframes glitch {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-2px); }
-    40% { transform: translateX(2px); }
-    60% { transform: translateX(-1px); }
-    80% { transform: translateX(1px); }
-  }
+  .summary-row .blocked { color: #ff8278; font-weight: 600; }
+  .summary-row .saved   { color: #3fd98c; font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) {
-    .meter-fill { transition: none; }
-    .meter-panel { animation: none; }
-    .meter-panel::before { animation: none; }
+    .txn, .summary { opacity: 1; transform: none; transition: none; }
   }
 
-  /* ---------- sections ---------- */
-  section {
-    padding: 84px 0;
-    border-top: 1px solid var(--line);
+  /* ========================= Sections ============================ */
+  section.sec {
+    padding: 96px 0;
+    border-top: 1px solid var(--line-2);
     position: relative;
+  }
+  @media (max-width: 720px) {
+    section.sec { padding: 72px 0; }
+  }
+  .sec-head { max-width: 60ch; margin-bottom: 48px; }
+  .sec-head h2 {
+    margin: 10px 0 0;
+    font-size: clamp(1.7rem, 2.8vw, 2.2rem);
+    letter-spacing: -0.022em;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+  .sec-head p {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 1.04rem;
+  }
+
+  /* ========================= Feature grid ========================= */
+  .features {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  @media (max-width: 900px) { .features { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 620px) { .features { grid-template-columns: 1fr; } }
+
+  .fcard {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px 22px 26px;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+  .fcard:hover {
+    border-color: #ded9ff;
+    box-shadow: 0 14px 30px -18px rgba(109,93,252,.35);
+    transform: translateY(-2px);
+  }
+  .f-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--accent-soft);
+    display: grid; place-items: center;
+    margin-bottom: 16px;
+  }
+  .f-icon svg { width: 20px; height: 20px; stroke: var(--accent-2); stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .fcard.green .f-icon { background: var(--green-soft); }
+  .fcard.green .f-icon svg { stroke: var(--green); }
+  .fcard.amber .f-icon { background: var(--amber-soft); }
+  .fcard.amber .f-icon svg { stroke: var(--amber); }
+  .fcard.red   .f-icon { background: var(--red-soft); }
+  .fcard.red   .f-icon svg { stroke: var(--red); }
+  .fcard h3 {
+    margin: 0;
+    font-size: 15.5px; font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .fcard p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  /* ========================= Trust / security banner ============= */
+  .trust {
+    margin-top: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  @media (max-width: 820px) { .trust { grid-template-columns: 1fr 1fr; padding: 22px; } }
+  @media (max-width: 520px) { .trust { grid-template-columns: 1fr; } }
+  .trust-t {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .trust-t .lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .trust-t .val { font-size: 14.5px; font-weight: 700; color: var(--ink-2); letter-spacing: -0.01em; }
+  .trust-t svg { width: 18px; height: 18px; stroke: var(--green); stroke-width: 2; fill: none; }
+  .trust-row { display: flex; align-items: center; gap: 8px; }
+
+  /* ========================= How it works (steps) ================= */
+  .steps {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0; border: 1px solid var(--line); border-radius: var(--radius-lg);
+    overflow: hidden; background: var(--panel);
+    box-shadow: var(--shadow-sm);
+  }
+  @media (max-width: 820px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    padding: 28px 26px 30px;
+    position: relative;
+    border-left: 1px solid var(--line-2);
+  }
+  .step:first-child { border-left: 0; }
+  @media (max-width: 820px) { .step { border-left: 0; border-top: 1px solid var(--line-2); } .step:first-child { border-top: 0; } }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 8px;
+    background: var(--accent-soft); color: var(--accent-2);
+    font-family: var(--font-mono);
+    font-size: 12px; font-weight: 700;
+  }
+  .step h3 { margin: 14px 0 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .step p { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+  /* ========================= Tabbed quickstart ==================== */
+  .qs-wrap {
+    background: #111216;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,.04);
     overflow: hidden;
   }
+  .qs-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px;
+    background: #15161b;
+    border-bottom: 1px solid #24262c;
+  }
+  .qs-dots { display: flex; gap: 7px; }
+  .qs-tabs { display: flex; gap: 2px; padding: 0 4px; }
+  .qs-tab {
+    padding: 7px 12px;
+    font-size: 12px; font-weight: 500;
+    color: #8b90a0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    transition: background .15s ease, color .15s ease;
+  }
+  .qs-tab:hover { color: #d7d9df; }
+  .qs-tab.active { background: #20222a; color: #eee; }
+  .qs-body {
+    padding: 22px 24px 26px;
+    font-family: var(--font-mono);
+    font-size: 13px; line-height: 1.7;
+    color: #d7d9df;
+    overflow-x: auto;
+  }
+  .qs-panel { display: none; white-space: pre; }
+  .qs-panel.active { display: block; }
+  .qs-panel .k  { color: #c4b9ff; }   /* keys */
+  .qs-panel .s  { color: #9cdca8; }   /* strings */
+  .qs-panel .n  { color: #ffd28a; }   /* numbers */
+  .qs-panel .c  { color: #5a5e6b; font-style: normal; } /* comments */
+  .qs-panel .h  { color: #ff8278; }   /* highlights / headers */
 
-  section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
+  /* ========================= Compare table ======================== */
+  table.compare {
     width: 100%;
-    height: 100%;
-    background: radial-gradient(ellipse at center, transparent 0%, var(--bg) 70%);
-    pointer-events: none;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .compare th, .compare td {
+    padding: 16px 22px;
+    font-size: 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .compare thead th {
+    font-size: 13px; font-weight: 600;
+    color: var(--muted);
+    background: var(--panel-2);
+    letter-spacing: 0.02em; text-transform: uppercase;
+  }
+  .compare thead th.us {
+    color: var(--accent-2);
+    background: var(--accent-soft);
+  }
+  .compare tbody tr:last-child td { border-bottom: 0; }
+  .compare td.feature {
+    font-weight: 600; color: var(--ink-2);
+  }
+  .compare td.no { color: var(--muted); }
+  .compare td.yes {
+    color: var(--green); font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .compare td.yes::before {
+    content: ''; display: inline-block; width: 16px; height: 16px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23159b68' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M4 10l4 4 8-8'/></svg>") center/contain no-repeat;
+  }
+  .compare td.us-cell { background: rgba(239,237,255,.45); }
+  .compare-note { margin-top: 16px; font-size: 12.5px; color: var(--muted); max-width: 60ch; }
+  @media (max-width: 680px) {
+    .compare th, .compare td { padding: 12px 14px; font-size: 13px; }
   }
 
-  .section-head {
-    max-width: 56ch;
-    margin-bottom: 48px;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.8s ease;
+  /* ========================= Pricing ============================== */
+  .pricing {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 20px; align-items: stretch;
   }
-  .section-head.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  @media (max-width: 900px) { .pricing { grid-template-columns: 1fr; max-width: 420px; } }
 
-  h2 {
-    font-family: var(--font-display);
-    font-size: clamp(1.55rem, 2.6vw, 1.95rem);
-    font-weight: 700;
-    letter-spacing: -0.01em;
+  .price {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 30px 28px 28px;
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow-sm);
     position: relative;
-    display: inline-block;
   }
-  h2::after {
+  .price.featured {
+    border-color: transparent;
+    background:
+      linear-gradient(var(--panel), var(--panel)) padding-box,
+      var(--accent-grad) border-box;
+    border: 1px solid transparent;
+    box-shadow: 0 20px 50px -25px rgba(109,93,252,.55);
+  }
+  .price .badge {
+    position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+    padding: 4px 12px; border-radius: 999px;
+    background: var(--accent-grad); color: #fff;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
+    box-shadow: 0 6px 14px rgba(109,93,252,.4);
+  }
+  .price-name {
+    font-size: 13px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .06em;
+  }
+  .price-amt {
+    margin-top: 10px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .price-amt .dollar {
+    font-size: 2.4rem; font-weight: 800;
+    letter-spacing: -0.03em; color: var(--ink);
+  }
+  .price-amt .per { color: var(--muted); font-size: 14px; font-weight: 500; }
+  .price-desc {
+    margin-top: 8px;
+    color: var(--muted); font-size: 14px;
+    min-height: 42px;
+  }
+  .price ul {
+    list-style: none; margin: 22px 0 0; padding: 0;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .price li {
+    display: flex; gap: 10px;
+    font-size: 14px; color: var(--ink-2);
+  }
+  .price li::before {
     content: '';
-    position: absolute;
-    bottom: -8px;
-    left: 0;
-    width: 0;
-    height: 3px;
-    background: var(--red);
-    transition: width 0.5s ease;
+    flex: 0 0 16px; width: 16px; height: 16px; margin-top: 3px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236d5dfc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M4 10l4 4 8-8'/></svg>") center/contain no-repeat;
   }
-  .section-head.visible h2::after { width: 60px; }
-
-  .section-head p {
-    margin-top: 14px;
-    color: var(--ink-muted);
-    font-size: 1.02rem;
+  .price-cta {
+    margin-top: 26px;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 100%; height: 42px;
+    border-radius: 10px;
+    font-weight: 600; font-size: 14px;
+    transition: all .15s ease;
   }
+  .price-cta.outline {
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--line);
+  }
+  .price-cta.outline:hover { border-color: var(--accent); color: var(--accent-2); }
+  .price.featured .price-cta {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 10px 22px -10px rgba(109,93,252,.6);
+  }
+  .price.featured .price-cta:hover { background: var(--accent-2); }
 
-  /* ---------- how it works ---------- */
-  .steps {
+  /* ========================= Final CTA ============================ */
+  .cta {
+    padding: 88px 0 96px;
+    border-top: 1px solid var(--line-2);
+  }
+  .cta-box {
+    position: relative;
+    padding: 56px 56px;
+    border-radius: 22px;
+    background:
+      radial-gradient(1200px 400px at 10% -20%, rgba(109,93,252,.18), transparent 60%),
+      radial-gradient(900px 400px at 110% 120%, rgba(21,155,104,.12), transparent 55%),
+      linear-gradient(180deg, #17181f 0%, #111216 100%);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  @media (max-width: 720px) { .cta-box { padding: 40px 28px; } }
+  .cta-box h2 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    letter-spacing: -0.025em;
+    font-weight: 800; color: #fff;
+    line-height: 1.1;
+    max-width: 18ch;
+  }
+  .cta-box p {
+    margin: 14px 0 0;
+    color: #a8acb8; font-size: 1.02rem; max-width: 52ch;
+  }
+  .cta-actions {
+    margin-top: 30px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .cta-box .btn-primary {
+    background: #fff; color: var(--accent-2);
+    box-shadow: 0 10px 26px -6px rgba(255,255,255,.3);
+  }
+  .cta-box .btn-primary:hover { background: #eae6ff; }
+  .cta-box .btn-ghost {
+    background: transparent; color: #fff;
+    border-color: rgba(255,255,255,.16);
+  }
+  .cta-box .btn-ghost:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.28); }
+
+  /* ========================= Footer =============================== */
+  footer.site {
+    border-top: 1px solid var(--line-2);
+    padding: 56px 0 40px;
+    background: var(--panel);
+  }
+  .footer-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1.3fr 1fr 1fr 1fr 1.2fr;
     gap: 40px;
   }
-  @media (max-width: 800px) {
-    .steps { grid-template-columns: 1fr; }
-  }
-  .step { 
-    border-top: 2px solid var(--ink); 
-    padding-top: 16px;
-    opacity: 0;
-    transform: translateY(30px);
-    transition: all 0.6s ease;
-  }
-  .step.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .step:nth-child(1) { transition-delay: 0.1s; }
-  .step:nth-child(2) { transition-delay: 0.2s; }
-  .step:nth-child(3) { transition-delay: 0.3s; }
+  @media (max-width: 900px) { .footer-grid { grid-template-columns: 1fr 1fr 1fr; } }
+  @media (max-width: 600px) { .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; } }
 
-  .step:hover { transform: translateY(-5px); }
-  .step .num {
-    font-family: var(--font-mono);
-    color: var(--red);
-    font-size: 0.85rem;
-    display: inline-block;
-    transition: transform 0.3s ease;
+  .foot-brand p { margin: 12px 0 0; color: var(--muted); font-size: 13.5px; max-width: 32ch; line-height: 1.6; }
+  .foot-col h4 {
+    margin: 0 0 14px;
+    font-size: 12px; font-weight: 700; color: var(--ink-2);
+    text-transform: uppercase; letter-spacing: .08em;
   }
-  .step:hover .num { transform: scale(1.2) rotate(-5deg); }
-  .step h3 {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin-top: 10px;
+  .foot-col ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
+  .foot-col a {
+    color: var(--muted); font-size: 14px;
+    transition: color .15s ease;
   }
-  .step p {
-    margin-top: 10px;
-    color: var(--ink-muted);
-    font-size: 0.96rem;
-  }
+  .foot-col a:hover { color: var(--accent-2); }
 
-  /* ---------- quickstart ---------- */
-  .code-block {
-    background: var(--panel);
-    color: var(--panel-text);
-    border-radius: 8px;
-    padding: 22px 24px;
-    font-family: var(--font-mono);
-    font-size: 0.88rem;
-    overflow-x: auto;
-    position: relative;
-    box-shadow: 
-      0 10px 30px rgba(21, 23, 27, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    border: 1px solid var(--panel-line);
-    opacity: 0;
-    transform: scale(0.95);
-    transition: all 0.6s ease;
+  .subscribe label {
+    display: block;
+    font-size: 12px; font-weight: 700; color: var(--ink-2);
+    text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 10px;
   }
-  .code-block.visible {
-    opacity: 1;
-    transform: scale(1);
-  }
-  .code-block::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--red), var(--green-bright), var(--red));
-    background-size: 200% 100%;
-    animation: codeBorder 3s linear infinite;
-  }
-
-  @keyframes codeBorder {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 200% 0%; }
-  }
-
-  .code-block .comment { color: var(--panel-text-muted); }
-  .code-block .str { color: var(--green-bright); }
-
-  /* ---------- comparison table ---------- */
-  .compare-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin-top: 32px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(21, 23, 27, 0.1);
-    border: 2px solid var(--ink);
-  }
-  .compare-table thead {
-    background: var(--ink);
-    color: var(--bg);
-  }
-  .compare-table th {
-    padding: 18px 24px;
-    text-align: left;
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 0.95rem;
-    border-bottom: 2px solid var(--red);
-  }
-  .compare-table th.us {
-    background: linear-gradient(135deg, var(--ink) 0%, #1a1d23 100%);
-    position: relative;
-  }
-  .compare-table th.us::after {
-    content: '★';
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--red);
-    animation: starPulse 2s ease-in-out infinite;
-  }
-  @keyframes starPulse {
-    0%, 100% { transform: translateY(-50%) scale(1); }
-    50% { transform: translateY(-50%) scale(1.2); }
-  }
-  .compare-table tbody tr {
-    transition: all 0.3s ease;
+  .subscribe-form { display: flex; gap: 6px; }
+  .subscribe-form input {
+    flex: 1; min-width: 0;
+    height: 38px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: var(--ink);
     background: var(--bg);
+    transition: border-color .15s ease, box-shadow .15s ease;
   }
-  .compare-table tbody tr:hover {
-    background: rgba(232, 67, 45, 0.03);
-    transform: scale(1.01);
+  .subscribe-form input:focus {
+    outline: 0; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(109,93,252,.12);
   }
-  .compare-table td {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--line);
-    font-size: 0.95rem;
+  .subscribe-form button {
+    height: 38px; padding: 0 14px;
+    background: var(--accent); color: #fff;
+    border: 0; border-radius: 8px;
+    font-size: 13px; font-weight: 600; font-family: inherit;
+    cursor: pointer;
+    transition: background .15s ease;
   }
-  .compare-table td:first-child {
-    font-weight: 500;
-    color: var(--ink);
-    max-width: 300px;
-  }
-  .compare-table .no {
-    color: var(--ink-muted);
-    font-style: italic;
-  }
-  .compare-table .yes {
-    color: var(--green);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .compare-table .yes::before {
-    content: '✓';
-    color: var(--green-bright);
-    font-weight: bold;
-    animation: checkBounce 0.5s ease;
-  }
-  @keyframes checkBounce {
-    0% { transform: scale(0); }
-    50% { transform: scale(1.3); }
-    100% { transform: scale(1); }
-  }
-  .compare-table .us-cell {
-    background: rgba(63, 217, 140, 0.05);
-    position: relative;
-  }
-  .compare-table .us-cell::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--green-bright);
-  }
-  .compare-note {
-    margin-top: 24px;
-    font-size: 0.8rem;
-    color: var(--ink-muted);
-    font-style: italic;
-    max-width: 60ch;
-  }
-  @media (max-width: 700px) {
-    .compare-table {
-      font-size: 0.85rem;
-    }
-    .compare-table th, .compare-table td {
-      padding: 12px 16px;
-    }
-    .compare-table td:first-child {
-      max-width: 150px;
-    }
-  }
-
-  /* ---------- pricing ---------- */
-  .pricing-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0;
-    border: 2px solid var(--ink);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(21, 23, 27, 0.15);
-  }
-  @media (max-width: 800px) {
-    .pricing-grid { grid-template-columns: 1fr; }
-  }
-  .tier {
-    padding: 36px 30px;
-    border-left: 1px solid var(--line);
-    transition: all 0.4s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  .tier::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, transparent 0%, rgba(232, 67, 45, 0.03) 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-  .tier:hover::before { opacity: 1; }
-  .tier:hover { transform: translateY(-5px); }
-  .tier:first-child { border-left: none; }
-  .tier.highlight {
-    background: var(--ink);
-    color: var(--bg);
-    border-left: 2px solid var(--red);
-    transform: scale(1.05);
-    box-shadow: 0 20px 40px rgba(21, 23, 27, 0.3);
-    z-index: 10;
-  }
-  .tier.highlight:hover { transform: scale(1.08) translateY(-5px); }
-  .tier.highlight .tier-price span,
-  .tier.highlight ul { color: #B9BBC0; }
-  .tier.highlight li { border-top-color: var(--panel-line); }
-  .tier-name {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 1.05rem;
-  }
-  .tier-price {
-    font-family: var(--font-mono);
-    font-size: 1.7rem;
-    margin-top: 14px;
-  }
-  .tier-price span {
-    font-size: 0.85rem;
-    color: var(--ink-muted);
-  }
-  .tier ul {
-    list-style: none;
-    margin-top: 22px;
-    font-size: 0.9rem;
-    color: var(--ink-muted);
-  }
-  .tier li {
-    padding: 7px 0;
-    border-top: 1px solid var(--line);
-    transition: padding-left 0.3s ease;
-  }
-  .tier li:hover { padding-left: 5px; }
-  .tier li:first-child { border-top: none; }
-
-  /* ---------- footer cta ---------- */
-  .footer-cta {
-    padding: 96px 0;
-    text-align: left;
-    position: relative;
-  }
-  .footer-cta::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(232, 67, 45, 0.1) 0%, transparent 70%);
-    transform: translate(-50%, -50%);
-    animation: footerGlow 4s ease-in-out infinite;
-  }
-
-  @keyframes footerGlow {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
-  }
-
-  .footer-cta h2 { 
-    max-width: 18ch; 
-    position: relative;
-    z-index: 1;
-  }
-  footer {
-    padding: 32px 0 48px;
-    color: var(--ink-muted);
-    font-size: 0.85rem;
-    border-top: 1px solid var(--line);
-  }
-  footer .wrap {
-    display: flex;
-    justify-content: space-between;
-  }
-  @media (max-width: 600px) {
-    footer .wrap { flex-direction: column; gap: 8px; }
+  .subscribe-form button:hover { background: var(--accent-2); }
+  .foot-bottom {
+    margin-top: 44px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line-2);
+    display: flex; justify-content: space-between;
+    font-size: 12.5px; color: var(--muted);
+    flex-wrap: wrap; gap: 10px;
   }
 
   :focus-visible {
-    outline: 2px solid var(--red);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
-  }
-
-  /* Scroll reveal animation for sections */
-  .reveal {
-    opacity: 0;
-    transform: translateY(30px);
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .reveal.active {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* Magnetic button effect */
-  .btn-primary, .btn-secondary, .nav-cta, a.btn-primary, a.btn-secondary, a.nav-cta {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Enhanced section transitions */
-  section {
-    position: relative;
-  }
-
-  /* Cursor follower for interactive elements */
-  .interactive-cursor {
-    position: fixed;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--red);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 9999;
-    transition: transform 0.1s ease, opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
-    opacity: 0;
-    mix-blend-mode: difference;
-  }
-
-  .interactive-cursor.active {
-    opacity: 1;
-  }
-
-  .interactive-cursor.hovering {
-    transform: scale(2);
-    background: rgba(232, 67, 45, 0.3);
-    border-color: var(--green-bright);
+    border-radius: 6px;
   }
 </style>
 </head>
 <body>
 
-<div class="interactive-cursor" id="cursor"></div>
-
-<nav>
-  <div class="wrap" >
-    <div class="logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
-          <!-- Shield shape -->
-          <path class="logo-shield" d="M21 2L4 8v10c0 9.5 6.5 17.5 17 20 10.5-2.5 17-10.5 17-20V8L21 2z"/>
-          
-          <!-- Dollar sign in center -->
-          <text class="logo-dollar" x="21" y="28" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle">$</text>
-          
-          <!-- Guard lines on sides -->
-          <path class="logo-guards" d="M8 12l4 4M8 18l4 4"/>
-          <path class="logo-guards" d="M34 12l-4 4M34 18l-4 4"/>
-          
-          <!-- Top guard line -->
-          <path class="logo-guards" d="M14 6l2 3M28 6l-2 3"/>
-        </svg>
-      </div>
-      <a href="/">SpendGuard</a>
-    </div>
-    <ul>
-      <li><a href="#how">How it works</a></li>
+<!-- ==============================================================
+     Navigation — calm sticky bar, no animated underline gimmicks.
+     ============================================================== -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a href="/" class="brand" aria-label="SpendGuard AI">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+      </span>
+      SpendGuard
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#microbilling">Microbilling</a></li>
+      <li><a href="#quickstart">Quickstart</a></li>
       <li><a href="#pricing">Pricing</a></li>
-      <li><a href="#quickstart">Docs</a></li>
     </ul>
-    <a class="nav-cta" href="/auth">Get your API key</a>
-  </div>
-</nav>
-
-<header class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <h1>Your agent doesn't know when to stop. This does.</h1>
-      <p class="hero-sub">SpendGuard sits in front of every model call your product makes. Set a budget, and a runaway loop gets cut off before it becomes a bill — not after.</p>
-      <div class="hero-actions">
-        <a href="/auth" class="btn-primary">Get your API key</a>
-        <button class="btn-secondary">Read the docs</button>
-      </div>
-    </div>
-
-    <div class="meter-panel">
-      <div class="meter-label">
-        <span>PROJECT: local-dev</span>
-        <span id="meter-time">LIVE</span>
-      </div>
-      <div class="meter-track">
-        <div class="meter-fill" id="meter-fill"></div>
-      </div>
-      <div class="meter-readout">
-        <div class="meter-amount" id="meter-amount">$3.00</div>
-        <div class="meter-status" id="meter-status">flowing</div>
-      </div>
-      <div class="meter-log" id="meter-log"></div>
+    <div class="nav-right">
+      <a class="nav-ghost" href="/auth">Sign in</a>
+      <a class="nav-cta" href="/auth">
+        Get API key
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
     </div>
   </div>
 </header>
 
-<section id="how">
-  <div class="wrap">
-    <div class="section-head">
-      <h2>Three checks, every call, before money moves.</h2>
-      <p>No dashboard to check after the fact. Enforcement happens in the request path itself.</p>
+<!-- ==============================================================
+     Hero — tight 2-column, eyebrow announces microbilling launch
+     because that is what we just shipped. Right side is a staged
+     request log showing 3 passing calls + a blocked 429.
+     ============================================================== -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow"><span class="dot"></span> Now in beta: Chapa microbilling for Africa</span>
+      <h1 class="hero-title">
+        Stop LLM costs before they become a <span class="grad">real bill.</span>
+      </h1>
+      <p class="hero-sub">
+        SpendGuard sits in front of every model call your product makes.
+        Atomic pre-flight quota checks, end-user microbilling with
+        Chapa, and fail-closed enforcement — so a runaway loop never
+        reaches the provider.
+      </p>
+      <div class="hero-cta">
+        <a href="/auth" class="btn btn-primary">
+          Get your API key
+          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#quickstart" class="btn btn-ghost">Read the quickstart →</a>
+      </div>
+      <div class="hero-meta">
+        <span>
+          <svg viewBox="0 0 24 24"><path d="M4 10l4 4 8-8"/></svg>
+          SHA-256 API key storage
+        </span>
+        <span>
+          <svg viewBox="0 0 24 24"><path d="M4 10l4 4 8-8"/></svg>
+          Idempotent webhooks
+        </span>
+        <span>
+          <svg viewBox="0 0 24 24"><path d="M4 10l4 4 8-8"/></svg>
+          Redis-atomic quotas
+        </span>
+      </div>
     </div>
-    <div class="steps">
-      <div class="step">
-        <div class="num">01</div>
-        <h3>Point your SDK here</h3>
-        <p>Swap your base URL. Your existing OpenAI, Anthropic, or Grok integration keeps working exactly as written.</p>
+
+    <div class="terminal" aria-label="SpendGuard request log">
+      <div class="terminal-bar">
+        <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
+        <span class="terminal-title">api.spendguard.com — live requests</span>
       </div>
-      <div class="step">
-        <div class="num">02</div>
-        <h3>We check before we call</h3>
-        <p>Every request is weighed against the budget you set — project-wide, per user, or per agent — in under ten milliseconds.</p>
-      </div>
-      <div class="step">
-        <div class="num">03</div>
-        <h3>We stop it before it costs you</h3>
-        <p>Over budget, or repeating itself in a loop? The call never reaches the model. You get a 429, not a bill.</p>
+      <div class="terminal-body" id="txns">
+        <div class="txn"><span class="t">14:02:03</span><span class="tag tag-ok">200</span><span>POST /v1/chat/completions</span>
+<div class="muted">   ↳ gpt-4o-mini · 12,340 tokens · <span class="kv">$0.0042</span> · user_abe</div></div>
+        <div class="txn"><span class="t">14:02:05</span><span class="tag tag-ok">200</span><span>POST /v1/chat/completions</span>
+<div class="muted">   ↳ gpt-4o-mini · 28,910 tokens · <span class="kv">$0.0097</span> · user_abe</div></div>
+        <div class="txn"><span class="t">14:02:07</span><span class="tag tag-ok">200</span><span>POST /v1/chat/completions</span>
+<div class="muted">   ↳ gpt-4o-mini · 54,217 tokens · <span class="kv">$0.0181</span> · user_abe</div></div>
+        <div class="txn"><div class="sep"></div></div>
+        <div class="txn"><span class="t">14:02:09</span><span class="tag tag-block">429</span><span>POST /v1/chat/completions — <span class="blocked">BLOCKED</span></span>
+<div class="muted">   ↳ repeating loop detected · user_abe · scope: <span class="kv">user:proj_9:user_abe</span></div>
+<div class="muted">   ↳ reason: remaining <span class="kv">$0.00</span> · estimate <span class="kv">$0.018</span></div></div>
+
+        <div class="summary" id="summary">
+          <div class="summary-row"><span>Grant funded (ETB)</span><b>100.00 ብር</b></div>
+          <div class="summary-row"><span>3 calls — total spent</span><b>0.0320</b></div>
+          <div class="summary-row"><span>4th call — blocked</span><span class="blocked">Before it reached the model</span></div>
+          <div class="summary-row"><span>Estimated saved</span><span class="saved">≈ $2,400+ / runaway loop</span></div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<section id="quickstart">
+<!-- ==============================================================
+     Features — 6-card grid with colored iconography. Real claims
+     backed by code: SHA-256 keys, Redis atomicity, FIFO grants, etc.
+     ============================================================== -->
+<section class="sec" id="features">
   <div class="wrap">
-    <div class="section-head">
-      <h2>Two lines. That's the integration.</h2>
-      <p>No new SDK to learn — SpendGuard speaks the same request format your client already sends.</p>
+    <div class="sec-head">
+      <span class="eyebrow"><span class="dot"></span> Feature set</span>
+      <h2>One gateway. Every control you need.</h2>
+      <p>Enforcement happens inline on the request path — not after, from a dashboard. Everything below is live in the API today.</p>
     </div>
-    <div class="code-block">
-<span class="comment"># before</span><br>
-client = OpenAI(base_url=<span class="str">"https://api.openai.com/v1"</span>)<br><br>
-<span class="comment"># after</span><br>
-client = OpenAI(base_url=<span class="str">"https://api.spendguard.com/v1"</span>, api_key=<span class="str">"sk-live-..."</span>)
+
+    <div class="features">
+      <div class="fcard">
+        <div class="f-icon">
+          <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <h3>Atomic pre-flight check</h3>
+        <p>Estimated cost is decremented from Redis quotas <em>before</em> the upstream call; true-up refunds the delta after. No double-spend, no race conditions.</p>
+      </div>
+      <div class="fcard green">
+        <div class="f-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <h3>Chapa microbilling</h3>
+        <p>Sell AI credits to your Ethiopian customers in ETB. 3-way split — usage grant, platform fee, founder payout — computed automatically at checkout.</p>
+      </div>
+      <div class="fcard amber">
+        <div class="f-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 6-8"/></svg>
+        </div>
+        <h3>FIFO grant expiry</h3>
+        <p>Usage grants are consumed oldest-first so expiry is handled correctly. Expired balances get swept cleanly by a periodic worker.</p>
+      </div>
+      <div class="fcard red">
+        <div class="f-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        </div>
+        <h3>Dual quota scopes</h3>
+        <p>Every call checks both the project-level bucket AND the per-end-user Redis balance. Either trip → 429 before the model sees a token.</p>
+      </div>
+      <div class="fcard">
+        <div class="f-icon">
+          <svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+        </div>
+        <h3>Stream-safe metering</h3>
+        <p>Streaming token counts are synthesized correctly across partial chunks — including Anthropic's split input/output stream events.</p>
+      </div>
+      <div class="fcard green">
+        <div class="f-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Fail-closed architecture</h3>
+        <p>If the enforcement layer has a problem we block, not pass. API keys are SHA-256 hashed before storage — never in plaintext.</p>
+      </div>
+    </div>
+
+    <!-- Security / trust strip directly under features -->
+    <div style="margin-top: 36px;" class="trust" aria-label="Security & architecture guarantees">
+      <div class="trust-t">
+        <div class="lbl">API keys</div>
+        <div class="trust-row">
+          <svg viewBox="0 0 24 24"><path d="M4 10l4 4 8-8"/></svg>
+          <span class="val">SHA-256 hashed</span>
+        </div>
+      </div>
+      <div class="trust-t">
+        <div class="lbl">Webhook delivery</div>
+        <div class="trust-row">
+          <svg viewBox="0 0 24 24"><path d="M4 10l4 4 8-8"/></svg>
+          <span class="val">HMAC verified + idempotent</span>
+        </div>
+      </div>
+      <div class="trust-t">
+        <div class="lbl">Quota operation</div>
+        <div class="trust-row">
+          <svg viewBox="0 0 24 24"><path d="M4 10l4 4 8-8"/></svg>
+          <span class="val">Redis atomic DECRBY</span>
+        </div>
+      </div>
+      <div class="trust-t">
+        <div class="lbl">Postgres ledger</div>
+        <div class="trust-row">
+          <svg viewBox="0 0 24 24"><path d="M4 10l4 4 8-8"/></svg>
+          <span class="val">Batch-written, non-blocking</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="compare">
+<!-- ==============================================================
+     Microbilling feature deep-dive section (since it's the new one
+     we just implemented this session). 3 numbered steps + short
+     explanation of the split math so African founders immediately
+     get the value prop.
+     ============================================================== -->
+<section class="sec" id="microbilling">
   <div class="wrap">
-    <div class="section-head">
-      <h2>A budget cap isn't a kill switch.</h2>
-      <p>Most gateways stop counting after the damage is already done. A fast loop can burn real money before a dollar cap ever trips — and if the enforcement layer itself goes down, some fail open instead of closed.</p>
+    <div class="sec-head">
+      <span class="eyebrow"><span class="dot"></span> Built for African AI teams</span>
+      <h2>Charge your end users in ETB. Keep the split.</h2>
+      <p>SpendGuard's Chapa integration auto-creates a subaccount for every project. Every checkout splits the transaction automatically — founder payout, SpendGuard platform fee, and the end user's AI credit grant.</p>
     </div>
-    <table class="compare-table">
+
+    <div class="steps" aria-label="Microbilling 3-step flow">
+      <div class="step">
+        <span class="step-num">1</span>
+        <h3>Connect your bank</h3>
+        <p>Submit your bank details through SpendGuard's onboarding. We create your Chapa subaccount on our platform key — you never touch Chapa's API directly.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <h3>Create a pricing plan</h3>
+        <p>Set a charge amount, an AI credit allocation, and your split. SpendGuard hard-rejects plans where your credit grant exceeds what the processor actually leaves us.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <h3>Your user pays, gets credit</h3>
+        <p>Chapa webhook → idempotency lock → usage grant row + Redis INCRBY. Credits are spendable instantly. You see every grant in the dashboard audit log.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================================================
+     Quickstart — tabbed: Python · Node · cURL. Each snippet shows
+     the 2-line swap + the real X-End-User-Id header (microbilling).
+     ============================================================== -->
+<section class="sec" id="quickstart">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="dot"></span> Integration</span>
+      <h2>Swap your base URL. Everything else stays.</h2>
+      <p>No new SDK. SpendGuard speaks the OpenAI-compatible protocol verbatim — and also routes to Anthropic transparently.</p>
+    </div>
+
+    <div class="qs-wrap">
+      <div class="qs-head">
+        <div class="qs-dots">
+          <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
+        </div>
+        <div class="qs-tabs" role="tablist">
+          <div class="qs-tab active" data-tab="python" role="tab">Python</div>
+          <div class="qs-tab"        data-tab="node"   role="tab">Node</div>
+          <div class="qs-tab"        data-tab="curl"   role="tab">cURL</div>
+        </div>
+        <span style="font-family: var(--font-mono); font-size: 11px; color: #6f7480;">quickstart.py</span>
+      </div>
+      <div class="qs-body">
+<div class="qs-panel active" id="qs-python"><span class="c"># 1) pip install openai</span>
+<span class="k">from</span> openai <span class="k">import</span> OpenAI
+
+client = OpenAI(
+    <span class="k">base_url</span>=<span class="s">"https://api.spendguard.com/v1"</span>,
+    <span class="k">api_key</span> =<span class="s">"sk-live-…"</span>,
+)
+
+<span class="c"># 2) Bill this call to your end user (microbilling)</span>
+<span class="c">#    SpendGuard checks both project AND user balance before routing</span>
+resp = client.chat.completions.create(
+    <span class="k">model</span>=<span class="s">"gpt-4o-mini"</span>,
+    <span class="k">messages</span>=[{<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: <span class="s">"Hi"</span>}],
+    <span class="k">extra_headers</span>={<span class="s">"X-End-User-Id"</span>: <span class="s">"your_user_123"</span>},
+)
+<span class="c"># Over-quota → 429, never reaches the model.</span></div>
+
+<div class="qs-panel" id="qs-node"><span class="c">// 1) npm i openai</span>
+<span class="k">import</span> OpenAI <span class="k">from</span> <span class="s">"openai"</span>;
+
+<span class="k">const</span> client = <span class="k">new</span> OpenAI({
+  <span class="k">baseURL</span>: <span class="s">"https://api.spendguard.com/v1"</span>,
+  <span class="k">apiKey</span>:  <span class="s">"sk-live-…"</span>,
+});
+
+<span class="c">// 2) Scope a call to your end user for ETB microbilling</span>
+<span class="k">const</span> resp = <span class="k">await</span> client.chat.completions.create({
+  <span class="k">model</span>:    <span class="s">"gpt-4o-mini"</span>,
+  <span class="k">messages</span>: [{<span class="k">role</span>: <span class="s">"user"</span>, <span class="k">content</span>: <span class="s">"Hi"</span>}],
+}, {
+  <span class="k">headers</span>: { <span class="s">"X-End-User-Id"</span>: <span class="s">"your_user_123"</span> },
+});
+
+<span class="c">// Blocked loops return 429 before a token is spent.</span></div>
+
+<div class="qs-panel" id="qs-curl"><span class="c"># Stream-safe. Atomic quota check. True-up refund on response.</span>
+curl -X POST <span class="s">"https://api.spendguard.com/v1/chat/completions"</span> \
+  -H <span class="s">"Authorization: Bearer sk-live-…"</span> \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -H <span class="s">"X-End-User-Id: your_user_123"</span> \
+  -d <span class="s">'{
+    "model": "gpt-4o-mini",
+    "stream": true,
+    "messages": [{"role": "user", "content": "Hi"}]
+  }'</span>
+
+<span class="c"># 429 {</span>
+<span class="c">#   "error": { "message": "budget exceeded", "scope": "user:proj:your_user_123" }</span>
+<span class="c"># }</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================================================
+     Comparison — dead-simple, no row-scaling gimmicks.
+     ============================================================== -->
+<section class="sec" id="compare">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Most "gateways" count after the fire.</h2>
+      <p>A fast agent loop can burn serious money before a 60-second polling cap ever triggers. SpendGuard checks on every single request — inline, sub-10ms.</p>
+    </div>
+
+    <table class="compare" role="table">
       <thead>
         <tr>
-          <th>&nbsp;</th>
-          <th>Typical gateway</th>
-          <th class="us">SpendGuard</th>
+          <th style="width:38%">Capability</th>
+          <th style="width:31%">Typical LLM gateway</th>
+          <th class="us" style="width:31%">SpendGuard</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td>Stops a repeating loop before the budget is even hit</td>
-          <td class="no">Budget cap only</td>
-          <td class="yes us-cell">Yes</td>
+          <td class="feature">Stops a loop before budget is hit</td>
+          <td class="no">Dollar cap only — trips after damage</td>
+          <td class="yes us-cell">Yes — per-request inline</td>
         </tr>
         <tr>
-          <td>Fails closed if the enforcement layer has a problem</td>
-          <td class="no">Some fail open</td>
-          <td class="yes us-cell">Yes</td>
+          <td class="feature">End-user microbilling (Chapa, ETB)</td>
+          <td class="no">Requires Stripe / USA KYC</td>
+          <td class="yes us-cell">Yes — native Chapa split</td>
         </tr>
         <tr>
-          <td>No infrastructure to run or maintain yourself</td>
-          <td class="no">Often self-hosted</td>
-          <td class="yes us-cell">Fully hosted</td>
+          <td class="feature">Fails closed on infra fault</td>
+          <td class="no">Some pass open; undefined</td>
+          <td class="yes us-cell">Always closed</td>
         </tr>
         <tr>
-          <td>Real guardrails on a solo/indie budget</td>
-          <td class="no">Often enterprise-gated</td>
-          <td class="yes us-cell">From $0</td>
+          <td class="feature">Dual project + per-user quotas</td>
+          <td class="no">Project-level only</td>
+          <td class="yes us-cell">Both, scoped Redis keys</td>
+        </tr>
+        <tr>
+          <td class="feature">Fully hosted, nothing to run</td>
+          <td class="no">Often self-hosted Docker</td>
+          <td class="yes us-cell">Managed API</td>
+        </tr>
+        <tr>
+          <td class="feature">FIFO grant expiry + audit trail</td>
+          <td class="no">Best-effort counters</td>
+          <td class="yes us-cell">Postgres audit log</td>
         </tr>
       </tbody>
     </table>
-    <p class="compare-note">Comparison reflects publicly documented behavior of general-purpose LLM gateways as of 2026 — check each provider's current docs before switching.</p>
+    <p class="compare-note">Based on publicly documented behavior of major open-source LLM gateways as of Sep 2026. Verify against each provider before switching.</p>
   </div>
 </section>
 
-<section id="pricing">
+<!-- ==============================================================
+     Pricing — independent cards, highlight tier with gradient
+     border + pop-out "recommended" badge.
+     ============================================================== -->
+<section class="sec" id="pricing">
   <div class="wrap">
-    <div class="section-head">
-      <h2>Priced for one developer, not a procurement team.</h2>
-      <p>Start free. No card required.</p>
+    <div class="sec-head">
+      <span class="eyebrow"><span class="dot"></span> Pricing</span>
+      <h2>For one developer. Not a procurement team.</h2>
+      <p>Free until your product is earning. No card, no minimums, no surprises.</p>
     </div>
-    <div class="pricing-grid">
-      <div class="tier">
-        <div class="tier-name">Hobby</div>
-        <div class="tier-price">$0</div>
+
+    <div class="pricing">
+      <div class="price">
+        <div class="price-name">Hobby</div>
+        <div class="price-amt"><span class="dollar">$0</span></div>
+        <div class="price-desc">For a side project, MVP, or evaluation.</div>
         <ul>
-          <li>1 project, 1 API key</li>
+          <li>1 project · 1 API key</li>
           <li>10,000 requests / month</li>
-          <li>Hard budget + kill switch</li>
+          <li>Hard budget caps + kill switch</li>
+          <li>Per-end-user microbilling</li>
           <li>7-day request history</li>
         </ul>
+        <a href="/auth" class="price-cta outline">Start free →</a>
       </div>
-      <div class="tier highlight">
-        <div class="tier-name">Builder</div>
-        <div class="tier-price">$39<span>/mo</span></div>
+
+      <div class="price featured">
+        <div class="badge">RECOMMENDED</div>
+        <div class="price-name">Builder</div>
+        <div class="price-amt"><span class="dollar">$39</span><span class="per">/mo</span></div>
+        <div class="price-desc">For indie hackers and small teams with real traffic.</div>
         <ul>
-          <li>Unlimited projects</li>
+          <li>Unlimited projects &amp; API keys</li>
           <li>Per-user &amp; per-agent quotas</li>
-          <li>Loop &amp; anomaly detection</li>
-          <li>30-day history, Slack alerts</li>
-        </ul>
-      </div>
-      <div class="tier">
-        <div class="tier-name">Team</div>
-        <div class="tier-price">$249<span>/mo</span></div>
-        <ul>
-          <li>Seats &amp; org roles</li>
-          <li>Audit log</li>
+          <li>Chapa microbilling in production</li>
+          <li>Loop + anomaly detection</li>
+          <li>30-day history · Slack alerts</li>
           <li>Priority support</li>
-          <li>Higher throughput SLA</li>
         </ul>
+        <a href="/auth" class="price-cta">Get Builder →</a>
+      </div>
+
+      <div class="price">
+        <div class="price-name">Team</div>
+        <div class="price-amt"><span class="dollar">$249</span><span class="per">/mo</span></div>
+        <div class="price-desc">Seats, audit logs, throughput SLA for real products.</div>
+        <ul>
+          <li>Seats &amp; org roles · SSO</li>
+          <li>Full audit log export</li>
+          <li>99.9% throughput SLA</li>
+          <li>Custom provider adapters</li>
+          <li>Priority 24/7 support</li>
+        </ul>
+        <a href="/auth" class="price-cta outline">Start Team trial →</a>
       </div>
     </div>
   </div>
 </section>
 
-<section class="footer-cta" style="border-bottom:none;">
+<!-- ==============================================================
+     Final CTA — dark gradient panel, 2 CTAs, short pitch.
+     ============================================================== -->
+<section class="cta">
   <div class="wrap">
-    <h2>Set a budget. Walk away. It'll hold.</h2>
-    <div class="hero-actions">
-      <a href="/auth" class="btn-primary">Get your API key</a>
+    <div class="cta-box">
+      <h2>Set a budget once. Trust it every call.</h2>
+      <p>SpendGuard holds the line on your LLM spend — in the request path, before a single token is routed. Onboard in under 2 minutes.</p>
+      <div class="cta-actions">
+        <a href="/auth" class="btn btn-primary">Get your API key →</a>
+        <a href="#quickstart" class="btn btn-ghost">See the quickstart</a>
+      </div>
     </div>
   </div>
 </section>
 
-<footer>
+<!-- ==============================================================
+     Footer — 5 columns: brand, 2x nav, legal, newsletter signup.
+     ============================================================== -->
+<footer class="site">
   <div class="wrap">
-    <span>SpendGuard AI</span>
-    <span>Docs · Status · Contact</span>
+    <div class="footer-grid">
+      <div class="foot-brand">
+        <div class="brand">
+          <span class="brand-mark">
+            <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+          </span>
+          SpendGuard
+        </div>
+        <p>Budget enforcement &amp; microbilling for AI products, made in Africa.</p>
+      </div>
+
+      <div class="foot-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#microbilling">Microbilling</a></li>
+          <li><a href="/auth">Sign up</a></li>
+        </ul>
+      </div>
+
+      <div class="foot-col">
+        <h4>Developers</h4>
+        <ul>
+          <li><a href="#quickstart">Quickstart</a></li>
+          <li><a href="#quickstart">API docs</a></li>
+          <li><a href="#compare">Why not X?</a></li>
+          <li><a href="#">Status →</a></li>
+        </ul>
+      </div>
+
+      <div class="foot-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Security</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="foot-col">
+        <form class="subscribe" onsubmit="event.preventDefault(); this.querySelector('input').value=''; this.querySelector('button').textContent='Subscribed ✓';">
+          <label for="mce">Ship updates</label>
+          <div class="subscribe-form">
+            <input id="mce" type="email" placeholder="you@team.com" required />
+            <button type="submit">Join</button>
+          </div>
+        </form>
+        <div style="margin-top:22px; display:flex; flex-direction:column; gap:9px;">
+          <a href="#" style="font-size:13px; color:var(--muted);">Privacy Policy</a>
+          <a href="#" style="font-size:13px; color:var(--muted);">Terms of Service</a>
+          <a href="#" style="font-size:13px; color:var(--muted);">DPA &amp; subprocessors</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot-bottom">
+      <span>© 2026 SpendGuard AI. All rights reserved.</span>
+      <span>Addis Ababa · Remote-first</span>
+    </div>
   </div>
 </footer>
 
 <script>
-  // One orchestrated moment: the meter drains across four simulated
-  // calls, mirroring the real 3-allowed / 4th-blocked demo, then loops.
-  const calls = [
-    { cost: 1.00, tokens: 312, ok: true },
-    { cost: 1.00, tokens: 298, ok: true },
-    { cost: 1.00, tokens: 301, ok: true },
-    { cost: 1.00, tokens: 0,   ok: false },
-  ];
-  const startBalance = 3.00;
-
-  const fill = document.getElementById('meter-fill');
-  const amount = document.getElementById('meter-amount');
-  const status = document.getElementById('meter-status');
-  const log = document.getElementById('meter-log');
-  const timeLabel = document.getElementById('meter-time');
-
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function fmtTime(offsetSec) {
-    const d = new Date(1970, 0, 1, 14, 2, offsetSec);
-    return d.toTimeString().slice(0, 8);
-  }
-
-  async function runSequence() {
-    let balance = startBalance;
-    log.innerHTML = '';
-    fill.style.width = '100%';
-    fill.classList.remove('tripped');
-    amount.textContent = '$' + balance.toFixed(2);
-    status.textContent = 'flowing';
-    status.classList.remove('blocked');
-    timeLabel.textContent = 'LIVE';
-
-    for (let i = 0; i < calls.length; i++) {
-      await sleep(reduceMotion ? 200 : 1100);
-      const call = calls[i];
-      const line = document.createElement('div');
-
-      if (call.ok) {
-        balance -= call.cost;
-        fill.style.width = Math.max(balance / startBalance * 100, 0) + '%';
-        amount.textContent = '$' + Math.max(balance, 0).toFixed(2);
-        amount.classList.add('update');
-        setTimeout(() => amount.classList.remove('update'), 300);
-        line.textContent = `${fmtTime(3 + i)}  call #${i + 1}   gpt-4o-mini   ${call.tokens} tokens   ok`;
-      } else {
-        fill.classList.add('tripped');
-        status.textContent = 'blocked — budget exceeded';
-        status.classList.add('blocked');
-        line.textContent = `${fmtTime(3 + i)}  call #${i + 1}   gpt-4o-mini   —   blocked — budget exceeded`;
-        line.classList.add('blocked-line');
-        timeLabel.textContent = 'STOPPED';
-      }
-      log.appendChild(line);
-      log.scrollTop = log.scrollHeight;
+  /* ---------------------------------------------------------------
+     Staged hero terminal — fades in 4 rows, then summary, once.
+     No continuous "restart" loops; just a single entrance cue.
+     --------------------------------------------------------------- */
+  (function () {
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var txns = document.querySelectorAll('#txns .txn');
+    var summary = document.getElementById('summary');
+    var show = function (el, ms) { setTimeout(function () { el.classList.add('in'); }, ms); };
+    if (reduceMotion) {
+      txns.forEach(function (t) { t.classList.add('in'); });
+      if (summary) summary.classList.add('in');
+      return;
     }
+    for (var i = 0; i < txns.length; i++) show(txns[i], 200 + i * 350);
+    if (summary) show(summary, 200 + txns.length * 350 + 100);
+  })();
 
-    await sleep(2200);
-    runSequence();
-  }
-
-  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-  runSequence();
-
-  // Scroll reveal animations
-  const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-  };
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible', 'active');
-        
-        // Animate steps within sections
-        const steps = entry.target.querySelectorAll('.step');
-        steps.forEach((step, index) => {
-          setTimeout(() => {
-            step.classList.add('visible');
-          }, index * 150);
-        });
-      }
+  /* ---------------------------------------------------------------
+     Tabbed quickstart switcher
+     --------------------------------------------------------------- */
+  (function () {
+    var tabs = document.querySelectorAll('.qs-tab');
+    var panels = document.querySelectorAll('.qs-panel');
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        var key = t.dataset.tab;
+        tabs.forEach(function (x) { x.classList.toggle('active', x === t); });
+        panels.forEach(function (p) { p.classList.toggle('active', p.id === 'qs-' + key); });
+      });
     });
-  }, observerOptions);
+  })();
 
-  // Observe sections
-  document.querySelectorAll('section').forEach(section => {
-    section.classList.add('reveal');
-    observer.observe(section);
-  });
-
-  // Observe section heads
-  document.querySelectorAll('.section-head').forEach(head => {
-    observer.observe(head);
-  });
-
-  // Observe code blocks
-  document.querySelectorAll('.code-block').forEach(block => {
-    observer.observe(block);
-  });
-
-  // Parallax effect on scroll
-  window.addEventListener('scroll', () => {
-    const scrolled = window.pageYOffset;
-    const meterPanel = document.querySelector('.meter-panel');
-    if (meterPanel) {
-      const rect = meterPanel.getBoundingClientRect();
-      if (rect.top < window.innerHeight && rect.bottom > 0) {
-        const translateY = (scrolled * 0.1);
-        meterPanel.style.transform = `perspective(1000px) rotateY(-5deg) rotateX(5deg) translateY(${translateY}px)`;
-      }
-    }
-  });
-
-  // Mouse move effect on meter panel
-  const meterPanel = document.querySelector('.meter-panel');
-  if (meterPanel) {
-    meterPanel.addEventListener('mousemove', (e) => {
-      const rect = meterPanel.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const rotateX = (y - centerY) / 20;
-      const rotateY = (centerX - x) / 20;
-      
-      meterPanel.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-    });
-
-    meterPanel.addEventListener('mouseleave', () => {
-      meterPanel.style.transform = 'perspective(1000px) rotateY(-5deg) rotateX(5deg)';
-    });
-  }
-
-  // Custom cursor effect
-  const cursor = document.getElementById('cursor');
-  if (cursor) {
-    let mouseX = 0, mouseY = 0;
-    let cursorX = 0, cursorY = 0;
-
-    document.addEventListener('mousemove', (e) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      cursor.classList.add('active');
-    });
-
-    document.addEventListener('mouseleave', () => {
-      cursor.classList.remove('active');
-    });
-
-    // Add hover effect to interactive elements
-    const interactiveElements = document.querySelectorAll('a, button, .btn-primary, .btn-secondary, .nav-cta, a.btn-primary, a.btn-secondary, a.nav-cta, .tier, .step');
-    interactiveElements.forEach(el => {
-      el.addEventListener('mouseenter', () => cursor.classList.add('hovering'));
-      el.addEventListener('mouseleave', () => cursor.classList.remove('hovering'));
-    });
-
-    // Smooth cursor follow
-    function animateCursor() {
-      cursorX += (mouseX - cursorX) * 0.15;
-      cursorY += (mouseY - cursorY) * 0.15;
-      cursor.style.left = cursorX - 10 + 'px';
-      cursor.style.top = cursorY - 10 + 'px';
-      requestAnimationFrame(animateCursor);
-    }
-    animateCursor();
-  }
-
-  // Magnetic button effect
-  const magneticButtons = document.querySelectorAll('.btn-primary, .btn-secondary, .nav-cta, a.btn-primary, a.btn-secondary, a.nav-cta');
-  magneticButtons.forEach(button => {
-    button.addEventListener('mousemove', (e) => {
-      const rect = button.getBoundingClientRect();
-      const x = e.clientX - rect.left - rect.width / 2;
-      const y = e.clientY - rect.top - rect.height / 2;
-      
-      button.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px)`;
-    });
-
-    button.addEventListener('mouseleave', () => {
-      button.style.transform = 'translate(0, 0)';
-    });
-  });
-
-  // Stagger animation for table rows
-  const tableRows = document.querySelectorAll('.compare-table tbody tr');
-  const tableObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        tableRows.forEach((row, index) => {
-          setTimeout(() => {
-            row.style.opacity = '1';
-            row.style.transform = 'translateX(0)';
-          }, index * 100);
-        });
-      }
-    });
-  }, { threshold: 0.2 });
-
-  const compareTable = document.querySelector('.compare-table');
-  if (compareTable) {
-    tableRows.forEach(row => {
-      row.style.opacity = '0';
-      row.style.transform = 'translateX(-20px)';
-      row.style.transition = 'all 0.4s ease';
-    });
-    tableObserver.observe(compareTable);
-  }
+  /* ---------------------------------------------------------------
+     Soft scroll-reveal on feature cards + section heads.
+     One-way: once visible, stays. Respects reduced-motion.
+     --------------------------------------------------------------- */
+  (function () {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var el = document.querySelectorAll('.fcard, .sec-head, .step, .price, .trust, .cta-box');
+    el.forEach(function (n) { n.style.opacity = '0'; n.style.transform = 'translateY(16px)'; n.style.transition = 'opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1)'; });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.style.opacity = '1'; e.target.style.transform = 'none'; io.unobserve(e.target); }
+      });
+    }, { threshold: 0.1 });
+    el.forEach(function (n) { io.observe(n); });
+  })();
 </script>
 
 </body>
