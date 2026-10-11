@@ -1,60 +1,15 @@
 """
 Runtime configuration — loads environment variables once at startup and
-re-exposes them as typed, validated values. Nothing outside this module
-reads os.environ directly; everything imports from here.
+re-exposes them as typed, validated values.
 """
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from decimal import Decimal
-from pathlib import Path
-
 from dotenv import load_dotenv
 
 load_dotenv()
-
-
-@dataclass(frozen=True)
-class ChapaConfig:
-    """Everything the Chapa client needs.  All secrets are optional at
-    import time (so the app still boots for lint/test without Chapa
-    creds); payment_processor.py validates them on first real use and
-    raises a clear error if they're missing.
-
-    Chapa docs: https://developer.chapa.co/docs/overview/
-    Test keys live at https://dashboard.chapa.co/settings/api-keys — they
-    start with `CHASECK_TEST-` (secret) and `CHAPUBK_TEST-` (public).
-    """
-
-    # Secret key — starts with CHASECK_TEST- (test) or CHASECK_LIVE- (live).
-    # Used as Authorization: Bearer <secret_key> for all API calls.
-    secret_key: str | None
-
-    # Public key — CHAPUBK_TEST-xxx or CHAPUBK_LIVE-xxx.  Not used
-    # server-side, but forwarded to the frontend for Chapa.js Checkout
-    # if we ever embed instead of redirect.
-    public_key: str | None
-
-    # Chapa's webhook hash secret.  You set this in Dashboard →
-    # Settings → Webhooks → "Webhook HMAC Secret" (or the dashboard
-    # auto-generates one for you when you add a webhook).  If unset,
-    # webhook payloads are NOT verified in non-prod — NEVER ship to
-    # prod without it.
-    webhook_hmac_secret: str | None
-
-    # Human-readable platform name — shown in Chapa's email/SMS
-    # receipts, the hosted checkout page, etc.
-    platform_display_name: str
-
-    # Which processor is ACTIVE.  Today it's hardcoded 'chapa'; a
-    # future multi-processor rollout can read this from
-    # platform_settings or from project-level config instead of an env
-    # var.  Callers that need a processor discriminator should prefer
-    # this singleton rather than sprinkling `'chapa'` literals through
-    # the codebase.
-    processor: str
 
 
 @dataclass(frozen=True)
@@ -65,61 +20,33 @@ class AppConfig:
     upstream_base_key: str
     supabase_url: str
     supabase_key: str
-    chapa: ChapaConfig
-
-    @property
-    def public_base_url(self) -> str:
-        """Public base URL the app is reachable at — used for Chapa
-        callback_url (webhook endpoint), success_url, and cancel_url
-        construction.  Read from env or fall back to localhost for
-        local dev."""
-        return os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
-
-
-def _chapa() -> ChapaConfig:
-    return ChapaConfig(
-        secret_key=os.getenv("CHAPA_SECRET_KEY"),
-        public_key=os.getenv("CHAPA_PUBLIC_KEY"),
-        webhook_hmac_secret=os.getenv("CHAPA_WEBHOOK_HMAC_SECRET"),
-        platform_display_name=os.getenv("CHAPA_PLATFORM_NAME", "SpendGuard AI"),
-        processor=os.getenv("PAYMENT_PROCESSOR", "chapa").strip().lower() or "chapa",
-    )
+    admin_api_key: str | None = None
+    default_currency: str = "USD"
+    default_run_budget_cents: int = 100  # Default $1.00 hard spend limit per agent run
+    default_max_steps_per_run: int = 50   # Default runaway loop step threshold
+    reservation_ttl_seconds: int = 120    # 2 minutes default before abandoned reservation is reaped
+    reaper_interval_seconds: float = 5.0  # Reaper sweep interval
+    public_base_url: str = "http://localhost:8000"
 
 
 def load() -> AppConfig:
-    """Called once at app startup; re-imports just return the singleton
-    via the module-level variable below."""
+    """Loads configuration from environment variables."""
     return AppConfig(
-        database_url=os.environ["DATABASE_URL"],
-        redis_url=os.environ["REDIS_URL"],
-        upstream_base_url=os.environ["UPSTREAM_BASE_URL"],
-        upstream_base_key=os.environ["UPSTREAM_BASE_KEY"],
-        supabase_url=os.environ["SUPABASE_URL"],
-        supabase_key=os.environ["SUPABASE_KEY"],
-        chapa=_chapa(),
+        database_url=os.environ.get("DATABASE_URL", ""),
+        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/"),
+        upstream_base_url=os.environ.get("UPSTREAM_BASE_URL", "https://api.openai.com/v1"),
+        upstream_base_key=os.environ.get("UPSTREAM_BASE_KEY", ""),
+        supabase_url=os.environ.get("SUPABASE_URL", ""),
+        supabase_key=os.environ.get("SUPABASE_KEY", ""),
+        admin_api_key=os.getenv("ADMIN_API_KEY") or os.getenv("SPENDGUARD_ADMIN_KEY"),
+        default_currency=os.getenv("DEFAULT_CURRENCY", "USD"),
+        default_run_budget_cents=int(os.getenv("DEFAULT_RUN_BUDGET_CENTS", "100")),
+        default_max_steps_per_run=int(os.getenv("DEFAULT_MAX_STEPS_PER_RUN", "50")),
+        reservation_ttl_seconds=int(os.getenv("RESERVATION_TTL_SECONDS", "120")),
+        reaper_interval_seconds=float(os.getenv("REAPER_INTERVAL_SECONDS", "5.0")),
+        public_base_url=os.getenv("PUBLIC_BASE_URL", "http://localhost:8000"),
     )
 
 
-# Singleton — spendguard boots once, config doesn't change mid-process.
-# Access via `from app.config import config` anywhere after startup.
+# Singleton instance
 config: AppConfig = load()
-
-
-# ---------------------------------------------------------------------------
-# Helpers for the PLATFORM_FEE_PERCENT business constant.
-#
-# Rule: this number comes from the DB (platform_settings.platform_fee_percent)
-# at runtime — NOT from an env var and NOT from a hardcoded default. The
-# env var here is ONLY an optional bootstrap path for local development so
-# the founder doesn't need to manually UPDATE a table row while testing.
-# ---------------------------------------------------------------------------
-
-PLATFORM_FEE_ENV_FALLBACK: Decimal | None = None
-_raw = os.getenv("PLATFORM_FEE_PERCENT")
-if _raw is not None and _raw.strip() != "":
-    try:
-        PLATFORM_FEE_ENV_FALLBACK = Decimal(_raw)
-    except Exception:
-        # Don't crash startup — let the DB value win, and if that's also
-        # missing the charge creation path raises a clear error.
-        PLATFORM_FEE_ENV_FALLBACK = None

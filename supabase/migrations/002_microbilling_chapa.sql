@@ -374,6 +374,15 @@ ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS created_at            TIM
 ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW();
 DO $$
 BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'checkout_sessions' AND column_name = 'connect_account_id'
+    ) THEN
+        ALTER TABLE checkout_sessions ALTER COLUMN connect_account_id DROP NOT NULL;
+    END IF;
+END $$;
+DO $$
+BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM   information_schema.table_constraints

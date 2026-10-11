@@ -6,3 +6,7 @@ httpx
 stripe>=8.0.0
 python-dotenv
 python-multipart
+OpenAI
+anthropic
+Flask
+supabase

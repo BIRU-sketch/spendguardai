@@ -1,339 +1,1454 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SpendGuard AI — Dashboard</title>
-  <style>
-    :root{
-      --bg:#f6f7f9;
-      --panel:#ffffff;
-      --panel-2:#fbfbfc;
-      --text:#17191f;
-      --muted:#6f7480;
-      --line:#e5e7eb;
-      --accent:#6d5dfc;
-      --accent-2:#5544ec;
-      --accent-soft:#efedff;
-      --green:#159b68;
-      --green-soft:#e7f7f0;
-      --amber:#c77d09;
-      --amber-soft:#fff4df;
-      --red:#d74747;
-      --red-soft:#fdeaea;
-      --blue:#3378e8;
-      --blue-soft:#eaf2ff;
-      --shadow:0 10px 30px rgba(26, 29, 36, .06);
-      --radius:16px;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SpendGuard AI &bull; Developer Dashboard</title>
+<meta name="description" content="Agent-Native Cost Control Center. Real-time run budget enforcement, pre-flight reservation, true-up settlement, and runaway loop protection." />
 
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;height:100%;font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;color:var(--text);background:var(--bg)}
-    body{overflow:hidden}
-    button,input{font:inherit}
-    button{cursor:pointer}
+<!-- Typography: Inter (UI) & JetBrains Mono (Data/Code) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-    .app{display:flex;height:100vh;min-height:680px}
+<style>
+  :root {
+    --bg-app: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --bg-hover: #f8fafc;
+    --bg-dark: #09090b;
+    --bg-dark-card: #121215;
 
-    /* Sidebar */
-    .sidebar{width:258px;background:#111216;color:#d7d9df;display:flex;flex-direction:column;padding:18px 14px;border-right:1px solid #26272c;flex:0 0 258px}
-    .brand{display:flex;align-items:center;gap:11px;padding:8px 10px 18px}
-    .brand-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#7b6cff,#5342e7);display:grid;place-items:center;box-shadow:0 8px 18px rgba(96,79,255,.25)}
-    .brand-mark svg{width:18px;height:18px}
-    .brand-name{font-weight:700;letter-spacing:-.02em;font-size:15px;color:#fff}
-    .brand-badge{margin-left:auto;border:1px solid #303138;color:#9da1ad;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:600}
+    --border: #e2e8f0;
+    --border-subtle: #edf2f7;
+    --border-dark: #27272a;
 
-    .workspace{margin:0 2px 15px;padding:12px;border:1px solid #2b2c31;border-radius:12px;background:#17181d}
-    .workspace-top{font-size:10px;color:#7d818c;text-transform:uppercase;letter-spacing:.09em;margin-bottom:7px}
-    .workspace-row{display:flex;justify-content:space-between;align-items:center}
-    .workspace-name{font-size:13px;font-weight:600;color:#f0f1f3}
-    .workspace-dot{width:7px;height:7px;background:#43d69e;border-radius:50%;box-shadow:0 0 0 4px rgba(67,214,158,.1)}
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
 
-    .nav-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#656873;padding:10px 11px 6px}
-    .nav{display:flex;flex-direction:column;gap:3px}
-    .nav-item{height:39px;padding:0 11px;display:flex;align-items:center;gap:11px;border-radius:10px;color:#aeb2bc;font-size:13px;text-decoration:none;transition:.15s ease}
-    .nav-item:hover{background:#191a1f;color:#fff}
-    .nav-item.active{background:#232126;color:#fff;box-shadow:inset 3px 0 0 var(--accent)}
-    .nav-item svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.8;fill:none}
-    .nav-item .nav-count{margin-left:auto;font-size:10px;background:#24262b;color:#9da1ab;border-radius:999px;padding:3px 7px}
-    .sidebar-spacer{flex:1}
-    .side-card{border-top:1px solid #292a30;padding:14px 10px 2px}
-    .side-card-title{font-size:11px;color:#8c909b;margin-bottom:5px}
-    .side-card-text{font-size:12px;color:#d8d9de;line-height:1.45;margin:0 0 10px}
-    .progress{height:5px;border-radius:999px;background:#25262c;overflow:hidden}
-    .progress > span{display:block;height:100%;width:68%;background:linear-gradient(90deg,#6d5dfc,#8d80ff);border-radius:999px}
-    .side-bottom{margin-top:13px;padding:11px 10px;border:1px solid #2b2c31;border-radius:12px;background:#17181d;display:flex;align-items:center;gap:9px}
-    .avatar{width:30px;height:30px;border-radius:9px;background:#ddd8ff;color:#5344e9;font-weight:700;font-size:11px;display:grid;place-items:center}
-    .user-meta{min-width:0}
-    .user-name{font-size:12px;font-weight:600;color:#eee}
-    .user-email{font-size:10px;color:#777b86;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .more{margin-left:auto;color:#717580}
+    --primary: #0f172a;
+    --primary-hover: #1e293b;
+    --accent: #2563eb;
+    --accent-subtle: #eff6ff;
+    --accent-border: #bfdbfe;
 
-    /* Main */
-    .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
-    .topbar{height:68px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 28px;backdrop-filter:blur(10px);position:relative;z-index:2}
-    .crumb{font-size:13px;color:var(--muted)}
-    .crumb strong{color:var(--text);font-weight:650}
-    .topbar-spacer{flex:1}
-    .range{height:34px;border:1px solid var(--line);background:#fff;padding:0 10px;border-radius:9px;color:#525761;font-size:12px}
-    .top-icon{width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:9px;display:grid;place-items:center;color:#666b74}
-    .top-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
-    .live{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:#23865e;padding:0 9px;height:34px;border:1px solid #d6eee2;background:#f6fcf8;border-radius:999px}
-    .live-dot{width:6px;height:6px;border-radius:50%;background:#23b879;box-shadow:0 0 0 4px rgba(35,184,121,.08)}
+    --success: #059669;
+    --success-subtle: #ecfdf5;
+    --success-border: #a7f3d0;
 
-    .content{padding:28px;overflow:auto}
-    .content::-webkit-scrollbar{width:9px}.content::-webkit-scrollbar-thumb{background:#d4d7dd;border-radius:999px;border:3px solid var(--bg)}
-    .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:24px}
-    h1{font-size:26px;letter-spacing:-.04em;margin:0 0 6px}
-    .hero p{margin:0;color:var(--muted);font-size:13px}
-    .actions{display:flex;gap:9px}
-    .btn{border-radius:10px;padding:10px 13px;border:1px solid var(--line);background:#fff;color:#3f444e;font-size:12px;font-weight:600}
-    .btn:hover{border-color:#cfd2d8}
-    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 7px 16px rgba(109,93,252,.18)}
-    .btn.primary:hover{background:var(--accent-2)}
+    --warning: #d97706;
+    --warning-subtle: #fffbeb;
+    --warning-border: #fde68a;
 
-    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .stat{padding:17px 17px 15px;min-height:142px;position:relative;overflow:hidden}
-    .stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-    .stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.055em}
-    .stat-icon{width:28px;height:28px;border-radius:8px;display:grid;place-items:center}
-    .stat-icon svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
-    .i-purple{color:var(--accent);background:var(--accent-soft)}.i-green{color:var(--green);background:var(--green-soft)}.i-blue{color:var(--blue);background:var(--blue-soft)}.i-amber{color:var(--amber);background:var(--amber-soft)}
-    .stat-value{font-size:28px;font-weight:700;letter-spacing:-.045em}
-    .stat-foot{margin-top:6px;display:flex;gap:7px;align-items:center;font-size:11px;color:var(--muted)}
-    .up{color:var(--green);font-weight:650}.down{color:var(--red);font-weight:650}
+    --danger: #dc2626;
+    --danger-subtle: #fef2f2;
+    --danger-border: #fecaca;
 
-    .mid-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(330px,.9fr);gap:14px;margin-top:14px}
-    .card-head{display:flex;justify-content:space-between;align-items:flex-start;padding:17px 17px 12px}
-    .title{font-size:14px;font-weight:700;letter-spacing:-.015em}
-    .subtitle{font-size:11px;color:var(--muted);margin-top:4px}
-    .select{height:31px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:0 9px;color:#565b64;font-size:11px}
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
 
-    .chart-card{min-height:318px}
-    .chart-wrap{padding:0 14px 14px 14px}
-    .chart{height:225px;position:relative}
-    .y-grid{position:absolute;inset:13px 0 31px 0;display:flex;flex-direction:column;justify-content:space-between}
-    .y-grid div{border-top:1px dashed #eceef1}
-    .y-labels{position:absolute;left:0;top:7px;bottom:31px;width:34px;display:flex;flex-direction:column;justify-content:space-between;font-size:9px;color:#9ca1aa}
-    .plot{position:absolute;left:43px;right:8px;top:12px;bottom:30px}
-    .area{position:absolute;inset:0;background:linear-gradient(180deg,rgba(109,93,252,.18),rgba(109,93,252,0));clip-path:polygon(0 86%,10% 77%,20% 81%,30% 59%,40% 66%,50% 41%,60% 53%,70% 22%,80% 39%,90% 24%,100% 12%,100% 100%,0 100%)}
-    .line-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-    .x-labels{position:absolute;left:43px;right:8px;bottom:8px;display:flex;justify-content:space-between;font-size:9px;color:#9ca1aa}
-    .chart-legend{display:flex;gap:15px;padding:0 17px 15px;font-size:10px;color:#6f7480}
-    .legend{display:flex;align-items:center;gap:6px}.legend-dot{width:7px;height:7px;border-radius:50%}.lg1{background:#6d5dfc}.lg2{background:#1fb77a}
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
 
-    .budget-card{min-height:318px;padding-bottom:16px}
-    .budget-main{padding:2px 17px 0}
-    .budget-amount{display:flex;align-items:flex-end;gap:7px;margin-top:6px}
-    .budget-amount .big{font-size:32px;font-weight:750;letter-spacing:-.05em}
-    .budget-amount .small{font-size:11px;color:var(--muted);margin-bottom:5px}
-    .budget-track{height:10px;background:#ececf5;border-radius:999px;overflow:hidden;margin:14px 0 8px}
-    .budget-track span{display:block;height:100%;width:72%;background:linear-gradient(90deg,#6d5dfc 0%,#7d6cff 100%);border-radius:999px}
-    .budget-meta{display:flex;justify-content:space-between;font-size:10px;color:#797e87}
-    .kill{margin:17px 0 0;border:1px solid #ececf0;border-radius:12px;padding:11px;background:#fbfbfc}
-    .kill-row{display:flex;justify-content:space-between;align-items:center}
-    .kill-title{font-size:11px;font-weight:700}.kill-text{font-size:10px;color:var(--muted);margin-top:4px}
-    .switch{width:38px;height:21px;background:#2b2d33;border-radius:999px;padding:3px;display:flex;justify-content:flex-end}.switch span{width:15px;height:15px;background:#fff;border-radius:50%}
-    .budget-foot{display:flex;gap:8px;margin-top:10px}.mini-kpi{flex:1;background:#f8f8fa;border:1px solid #ececf0;border-radius:10px;padding:9px}.mini-kpi .label{font-size:9px;color:var(--muted)}.mini-kpi .val{font-size:13px;font-weight:700;margin-top:3px}
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  }
 
-    .bottom-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;margin-top:14px}
-    .table-card{overflow:hidden}
-    .table{width:100%;border-collapse:collapse}
-    .table th,.table td{text-align:left;padding:12px 17px;border-top:1px solid #eef0f2;font-size:11px;vertical-align:middle}
-    .table th{font-size:9px;text-transform:uppercase;letter-spacing:.065em;color:#8c919b;font-weight:650;background:#fbfbfc;border-top:none}
-    .tenant{display:flex;align-items:center;gap:9px}.tenant-icon{width:27px;height:27px;border-radius:8px;display:grid;place-items:center;font-size:10px;font-weight:800;background:#f0f0f2;color:#4c515b}.tenant-name{font-weight:650}.tenant-sub{font-size:9px;color:#969aa3;margin-top:2px}
-    .usage{min-width:85px}.usage-bar{height:5px;background:#eaebee;border-radius:999px;overflow:hidden;margin-top:5px}.usage-bar span{display:block;height:100%;background:#6d5dfc;border-radius:999px}
-    .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:999px;font-size:9px;font-weight:700}.badge.green{color:#167b53;background:#e9f7f0}.badge.amber{color:#9a6105;background:#fff2da}.badge.red{color:#ae3535;background:#fdeaea}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    min-height: 100vh;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.011em;
+  }
 
-    .activity{padding-bottom:8px}
-    .activity-row{display:flex;gap:11px;padding:12px 17px;border-top:1px solid #eef0f2}.activity-row:first-child{border-top:0}
-    .activity-mark{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:0 0 28px}.activity-mark svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
-    .activity-copy{min-width:0;flex:1}.activity-title{font-size:11px;font-weight:650}.activity-meta{font-size:9px;color:#9297a1;margin-top:4px}.activity-value{font-size:10px;font-weight:700;color:#40454e;align-self:center}
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
 
-    .footer-note{font-size:10px;color:#989da6;padding:14px 2px 2px;text-align:right}
+  /* App Shell */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
 
-    @media (max-width: 1100px){
-      .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}.mid-grid,.bottom-grid{grid-template-columns:1fr}.sidebar{width:230px;flex-basis:230px}
-    }
-    @media (max-width: 780px){
-      body{overflow:auto}.app{min-height:0;height:auto}.sidebar{width:72px;flex-basis:72px;padding:16px 10px}.brand-name,.brand-badge,.workspace,.nav-label,.nav-item span,.nav-count,.side-card,.side-bottom .user-meta,.side-bottom .more{display:none}.brand{padding:0 8px 18px}.nav-item{justify-content:center;padding:0}.topbar{padding:0 16px}.content{padding:18px}.hero{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions .btn{flex:1}.grid-4{grid-template-columns:1fr}.table{min-width:590px}.table-card{overflow:auto}
-    }
-  </style>
+  /* -------------------------------------------------------------------
+     TOP NAVIGATION BAR (Vercel / Stripe Style)
+     ------------------------------------------------------------------- */
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-container {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .nav-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+  }
+
+  .brand-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--text-primary);
+    color: #ffffff;
+    border-radius: var(--radius-md);
+    display: grid;
+    place-items: center;
+  }
+  .brand-icon svg { width: 14px; height: 14px; stroke: #fff; stroke-width: 2.2; fill: none; }
+
+  .nav-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+  }
+
+  /* Workspace Selector */
+  .workspace-dropdown {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: var(--radius-md);
+    transition: border-color 0.15s ease;
+  }
+  .workspace-dropdown:hover {
+    border-color: var(--text-muted);
+  }
+
+  .workspace-select {
+    background: transparent;
+    border: none;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+  }
+
+  .tier-badge {
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+  }
+
+  .tier-badge.paid {
+    background: var(--success-subtle);
+    color: var(--success);
+    border-color: var(--success-border);
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+  }
+
+  .user-menu {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+
+  .btn-signout {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: var(--radius-md);
+    transition: color 0.15s ease;
+  }
+  .btn-signout:hover { color: var(--danger); }
+
+  /* -------------------------------------------------------------------
+     MAIN CONTENT CANVAS
+     ------------------------------------------------------------------- */
+  .main-canvas {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+    width: 100%;
+    flex: 1;
+  }
+
+  /* Page Header */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .id-pill {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Standard Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn svg { width: 14px; height: 14px; stroke-width: 2; fill: none; }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  .btn-secondary {
+    background: #ffffff;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-secondary:hover {
+    background: var(--bg-subtle);
+    border-color: var(--text-muted);
+  }
+
+  .btn-danger {
+    background: #ffffff;
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+  }
+  .btn-danger:hover {
+    background: var(--danger-subtle);
+  }
+
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  /* -------------------------------------------------------------------
+     METRICS OVERVIEW GRID
+     ------------------------------------------------------------------- */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  @media (max-width: 1024px) {
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .metrics-grid { grid-template-columns: 1fr; }
+  }
+
+  .metric-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .metric-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+
+  .metric-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* -------------------------------------------------------------------
+     TAB NAVIGATION BAR (Linear / Supabase Style)
+     ------------------------------------------------------------------- */
+  .tabs-bar {
+    display: flex;
+    gap: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+
+  .tab-item {
+    padding: 10px 0;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    position: relative;
+    border: none;
+    background: transparent;
+    transition: color 0.15s ease;
+    white-space: nowrap;
+  }
+  .tab-item:hover { color: var(--text-primary); }
+
+  .tab-item.active {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .tab-item.active::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--text-primary);
+  }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* -------------------------------------------------------------------
+     PANELS & CARDS
+     ------------------------------------------------------------------- */
+  .panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .panel-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .panel-body {
+    padding: 20px;
+  }
+
+  /* -------------------------------------------------------------------
+     DATA TABLES (Stripe / GitHub Style)
+     ------------------------------------------------------------------- */
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  table.data-table th {
+    background: var(--bg-subtle);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  table.data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  table.data-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  table.data-table tr:hover td {
+    background: var(--bg-hover);
+  }
+
+  .badge-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .badge-status.active {
+    background: var(--success-subtle);
+    color: var(--success);
+    border: 1px solid var(--success-border);
+  }
+  .badge-status.revoked {
+    background: var(--danger-subtle);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+  }
+  .badge-status.pending {
+    background: var(--warning-subtle);
+    color: var(--warning);
+    border: 1px solid var(--warning-border);
+  }
+
+  /* -------------------------------------------------------------------
+     CODE SNIPPET WINDOW
+     ------------------------------------------------------------------- */
+  .code-window {
+    background: var(--bg-dark);
+    color: #e4e4e7;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    border: 1px solid var(--border-dark);
+  }
+
+  .code-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #18181b;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-dark);
+  }
+
+  .code-lang-tabs {
+    display: flex;
+    gap: 4px;
+  }
+
+  .code-lang-btn {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    color: #a1a1aa;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-mono);
+  }
+  .code-lang-btn.active {
+    background: #27272a;
+    color: #ffffff;
+  }
+
+  .code-block {
+    padding: 16px;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 0;
+    display: none;
+  }
+  .code-block.active { display: block; }
+  .c-kw { color: #38bdf8; }
+  .c-str { color: #4ade80; }
+  .c-comment { color: #71717a; }
+
+  /* -------------------------------------------------------------------
+     MODAL DIALOGS
+     ------------------------------------------------------------------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(9, 9, 11, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: none;
+    place-items: center;
+    padding: 16px;
+  }
+  .modal-overlay.open { display: grid; }
+
+  .modal-card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    max-width: 460px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .modal-close {
+    background: transparent; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer;
+  }
+  .modal-close:hover { color: var(--text-primary); }
+
+  .modal-body { padding: 20px; }
+  .modal-footer {
+    padding: 12px 20px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .form-field { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .form-input, .form-select {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: #ffffff;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .form-input:focus, .form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 200;
+    background: var(--bg-dark);
+    color: #ffffff;
+    padding: 10px 18px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(60px);
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+</style>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M8.3 5.2 4.8 8.7a4.2 4.2 0 0 0 0 5.9l3.5 3.5M15.7 5.2l3.5 3.5a4.2 4.2 0 0 1 0 5.9l-3.5 3.5M13.9 4.4 10.1 19.6" stroke="white" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+<div class="app-shell">
+
+  <!-- ===================================================================
+       GLOBAL NAVIGATION
+       =================================================================== -->
+  <header class="top-nav">
+    <div class="nav-container">
+      <div class="nav-left">
+        <a href="/dashboard" class="brand-mark">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <span>SpendGuard</span>
+        </a>
+
+        <div class="nav-divider"></div>
+
+        <div class="workspace-dropdown">
+          <select class="workspace-select" onchange="window.location.href='/dashboard?project_id=' + this.value">
+            {% for p in projects %}
+            <option value="{{ p.project_id }}" {% if p.project_id == active_project.project_id %}selected{% endif %}>
+              {{ p.name }}
+            </option>
+            {% endfor %}
+          </select>
+          <span class="tier-badge {% if active_project.tier != 'free' %}paid{% endif %}">
+            {{ active_project.tier }}
+          </span>
         </div>
-        <div class="brand-name">SpendGuard AI</div>
-        <div class="brand-badge">BETA</div>
+
+        <button class="btn btn-secondary btn-sm" onclick="openModal('modal-workspace')">+ New</button>
       </div>
 
-      <div class="workspace">
-        <div class="workspace-top">Workspace</div>
-        <div class="workspace-row"><div class="workspace-name">Acme AI</div><div class="workspace-dot"></div></div>
+      <div class="nav-right">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Gateway Active</span>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <div class="user-menu">
+          <div class="user-avatar">{{ user.name[:2].upper() if user.name else 'SG' }}</div>
+          <a href="/auth/signout" class="btn-signout">Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================
+       MAIN CONTENT CONTAINER
+       =================================================================== -->
+  <main class="main-canvas">
+
+    <!-- Page Title & Actions -->
+    <div class="page-header">
+      <div class="header-left">
+        <h1>{{ active_project.name }}</h1>
+        <div class="header-meta">
+          <span>Project ID:</span>
+          <span class="id-pill">{{ active_project.project_id }}</span>
+          <button class="btn btn-secondary btn-sm" style="padding: 2px 6px; font-size: 11px;" onclick="copyText('{{ active_project.project_id }}', 'Copied project ID')">Copy</button>
+        </div>
       </div>
 
-      <div class="nav-label">Monitor</div>
-      <nav class="nav">
-        <a class="nav-item active" href="#overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Overview</span></a>
-        <a class="nav-item" href="#traffic"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18V3"/></svg><span>Traffic</span></a>
-        <a class="nav-item" href="#tenants"><svg viewBox="0 0 24 24"><path d="M16 21v-2.2a4.8 4.8 0 0 0-4.8-4.8H7.8A4.8 4.8 0 0 0 3 18.8V21M9.5 10.5A3.5 3.5 0 1 0 9.5 3a3.5 3.5 0 0 0 0 7.5ZM16.5 11a3 3 0 1 0 0-6"/><path d="M16.2 14.2h.7A4.1 4.1 0 0 1 21 18.3V21"/></svg><span>Tenants</span><span class="nav-count">24</span></a>
-        <a class="nav-item" href="#requests"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h12M4 17h8"/><circle cx="19" cy="17" r="2"/></svg><span>Requests</span></a>
-      </nav>
-
-      <div class="nav-label">Guardrails</div>
-      <nav class="nav">
-        <a class="nav-item" href="#budgets"><svg viewBox="0 0 24 24"><path d="M4 8.5h16M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 12h8M8 16h5"/></svg><span>Budgets</span></a>
-        <a class="nav-item" href="#policies"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 4.8-3.2 7.9-8 9-4.8-1.1-8-4.2-8-9V6l8-3Z"/><path d="m8.5 12 2.1 2.1 4.9-5"/></svg><span>Policies</span></a>
-        <a class="nav-item" href="#cache"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg><span>Semantic cache</span><span class="nav-count">81%</span></a>
-      </nav>
-
-      <div class="nav-label">Configure</div>
-      <nav class="nav">
-        <a class="nav-item" href="#gateway"><svg viewBox="0 0 24 24"><path d="M5 4h14M5 20h14M7 4v7a5 5 0 0 0 10 0V4M7 20v-7a5 5 0 0 1 10 0v7"/></svg><span>Gateway</span></a>
-        <a class="nav-item" href="#keys"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="12" r="3.5"/><path d="m10.5 12 8-8m-3 3h3v3m-6 1 3 3"/></svg><span>API keys</span></a>
-        <a class="nav-item" href="#billing"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 10h16M8 15h4"/></svg><span>Billing</span></a>
-        <a class="nav-item" href="#settings"><svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1A1.8 1.8 0 0 1 7.2 2.8l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0V2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/></svg><span>Settings</span></a>
-      </nav>
-
-      <div class="sidebar-spacer"></div>
-      <div class="side-card">
-        <div class="side-card-title">This month</div>
-        <p class="side-card-text">$1,840 of your $2,500 workspace budget is committed.</p>
-        <div class="progress"><span></span></div>
+      <div class="header-actions">
+        {% if active_project.tier != 'free' %}
+        <button class="btn btn-secondary" onclick="openModal('modal-topup')">Top Up Wallet</button>
+        {% endif %}
+        <button class="btn btn-primary" onclick="openModal('modal-key')">+ Create API Key</button>
       </div>
-      <div class="side-bottom">
-        <div class="avatar">DH</div>
-        <div class="user-meta"><div class="user-name">Daniel Henry</div><div class="user-email">you@acme.ai</div></div>
-        <div class="more">•••</div>
+    </div>
+
+    <!-- Alert Banner: Newly Generated Secret Key -->
+    <div id="new-key-banner" style="display:none; margin-bottom:24px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius-lg); padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:13px; font-weight:600; color:#15803d;">API Key Generated Successfully</span>
+        <span style="font-size:12px; color:#dc2626;">Save this key now &bull; It will not be shown again</span>
       </div>
-    </aside>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="displayed-raw-key" readonly class="form-input mono" style="background:#ffffff; font-weight:600; color:#0f172a;" />
+        <button class="btn btn-primary btn-sm" onclick="copyGeneratedKey()">Copy</button>
+      </div>
+    </div>
 
-    <main class="main">
-      <header class="topbar">
-        <div class="crumb">Workspace / <strong>Overview</strong></div>
-        <div class="topbar-spacer"></div>
-        <div class="live"><span class="live-dot"></span>Gateway healthy</div>
-        <select class="range" aria-label="Time range"><option>Last 7 days</option><option>Last 30 days</option><option>Today</option></select>
-        <button class="top-icon" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5"/></svg></button>
-        <button class="top-icon" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 7 2.5 7 2.5 8H3.5C3.5 16 6 16 6 9ZM9.5 20h5"/></svg></button>
-      </header>
+    <!-- Metrics Overview Grid -->
+    <div class="metrics-grid">
+      <!-- Spendable AI Wallet -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">AI Wallet Balance</span>
+          <span class="tier-badge {% if active_project.tier != 'free' %}paid{% endif %}">LIVE</span>
+        </div>
+        <div class="metric-value mono">
+          {% if wallet %}{{ "{:,.2f}".format(wallet.balance_cents / 100) }} {{ wallet.currency }}{% else %}{{ balance_formatted }}{% endif %}
+        </div>
+        <div class="metric-sub">Deducted on LLM inference</div>
+      </div>
 
-      <section class="content" id="overview">
-        <div class="hero">
+      <!-- Circuit Breaker -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Circuit Breaker</span>
+          <span class="badge-status active">ARMED</span>
+        </div>
+        <div class="metric-value mono" style="color:var(--success);">
+          FAIL-CLOSED
+        </div>
+        <div class="metric-sub">Max 50 steps / burst velocity limit</div>
+      </div>
+
+      <!-- Hard Exposure Cap -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Run Budget Cap</span>
+          <span class="id-pill">ACTIVE</span>
+        </div>
+        <div class="metric-value mono">
+          $1.00 USD
+        </div>
+        <div class="metric-sub">
+          Default ceiling per agent trajectory
+        </div>
+      </div>
+
+      <!-- Runaway Guard Status -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-label">Runaway Guard</span>
+          <span class="id-pill">ONLINE</span>
+        </div>
+        <div class="metric-value" style="font-size:18px; margin-top:2px;">
+          <span class="badge-status active">PROTECTED</span>
+        </div>
+        <div class="metric-sub">
+          Loop, spin &amp; tool repetition protection
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-item active" onclick="switchDashboardTab('tab-keys', this)">API Keys</button>
+      <button class="tab-item" onclick="switchDashboardTab('tab-runs', this)">Agent Runs &amp; Guardrails</button>
+      <button class="tab-item" onclick="switchDashboardTab('tab-wallet', this)">Workspace Balance &amp; Ledger</button>
+      <button class="tab-item" onclick="switchDashboardTab('tab-quickstart', this)">Integration &amp; SDK</button>
+    </div>
+
+    <!-- ===================================================================
+         TAB 1: API KEYS VAULT
+         =================================================================== -->
+    <div id="tab-keys" class="tab-pane active">
+      <div class="panel">
+        <div class="panel-header">
           <div>
-            <h1>Good afternoon, Daniel.</h1>
-            <p>Here’s what’s happening across your AI gateway.</p>
+            <h2 class="panel-title">API Keys</h2>
+            <p class="panel-desc">Authentication keys used to proxy LLM requests through SpendGuard.</p>
           </div>
-          <div class="actions">
-            <button class="btn">Export report</button>
-            <button class="btn">View logs</button>
-            <button class="btn primary">+ New policy</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-key')">+ Create Key</button>
+        </div>
+
+        <div class="table-wrap">
+          {% if keys and keys|length > 0 %}
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Secret Prefix</th>
+                <th>Created</th>
+                <th>Last Used</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for k in keys %}
+              <tr>
+                <td style="font-weight:600;">{{ k.name }}</td>
+                <td><span class="id-pill mono">{{ k.prefix }}</span></td>
+                <td style="color:var(--text-muted);">{{ k.created_at.strftime('%b %d, %Y') if k.created_at else 'Just now' }}</td>
+                <td style="color:var(--text-muted);">{{ k.last_used_at.strftime('%b %d, %H:%M') if k.last_used_at else 'Never' }}</td>
+                <td>
+                  {% if k.is_active and not k.revoked_at %}
+                    <span class="badge-status active">Active</span>
+                  {% else %}
+                    <span class="badge-status revoked">Revoked</span>
+                  {% endif %}
+                </td>
+                <td style="text-align:right;">
+                  {% if k.is_active and not k.revoked_at %}
+                    <button class="btn btn-danger btn-sm" onclick="revokeKey('{{ k.id }}', '{{ k.name }}')">Revoke</button>
+                  {% else %}
+                    <span style="color:var(--text-dim); font-size:12px;">Inactive</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div style="padding:32px; text-align:center; color:var(--text-muted);">
+            No API keys found. Click "+ Create Key" to generate a gateway token.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 2: AGENT RUNS & GUARDRAILS
+         =================================================================== -->
+    <div id="tab-runs" class="tab-pane">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Agent Trajectories &amp; Run Budgets</h2>
+            <p class="panel-desc">Real-time spend boundaries, runaway loop detection, and trajectory status.</p>
           </div>
         </div>
 
-        <div class="grid-4">
-          <div class="card stat">
-            <div class="stat-top"><div class="stat-label">Spend this month</div><div class="stat-icon i-purple"><svg viewBox="0 0 24 24"><path d="M12 3v18M17 7.5c0-1.9-2-3.2-5-3.2S7 5.1 7 7.1c0 5.6 10 2.3 10 8.3 0 2-2 3.8-5 3.8s-5-1.6-5-3.5"/></svg></div></div>
-            <div class="stat-value">$1,840.20</div><div class="stat-foot"><span class="up">+12.4%</span> vs. last month</div>
-          </div>
-          <div class="card stat">
-            <div class="stat-top"><div class="stat-label">Tokens processed</div><div class="stat-icon i-blue"><svg viewBox="0 0 24 24"><path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h3"/></svg></div></div>
-            <div class="stat-value">842.6M</div><div class="stat-foot"><span class="up">+18.7%</span> vs. last month</div>
-          </div>
-          <div class="card stat">
-            <div class="stat-top"><div class="stat-label">Requests blocked</div><div class="stat-icon i-red i-red" style="color:#d74747;background:#fdeaea"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m8.7 8.7 6.6 6.6"/></svg></div></div>
-            <div class="stat-value">1,284</div><div class="stat-foot"><span class="down">+31.2%</span> prevented by guardrails</div>
-          </div>
-          <div class="card stat">
-            <div class="stat-top"><div class="stat-label">Cache hit rate</div><div class="stat-icon i-green"><svg viewBox="0 0 24 24"><path d="M6 5.5h12v13H6z"/><path d="M8.5 9.5h7M8.5 13h4"/></svg></div></div>
-            <div class="stat-value">81.4%</div><div class="stat-foot"><span class="up">+6.1 pts</span> semantic cache savings</div>
-          </div>
-        </div>
-
-        <div class="mid-grid">
-          <div class="card chart-card" id="traffic">
-            <div class="card-head">
-              <div><div class="title">Spend & token usage</div><div class="subtitle">Daily gateway activity across all models</div></div>
-              <select class="select" aria-label="Metric"><option>Spend</option><option>Tokens</option><option>Requests</option></select>
-            </div>
-            <div class="chart-wrap">
-              <div class="chart">
-                <div class="y-grid"><div></div><div></div><div></div><div></div><div></div></div>
-                <div class="y-labels"><span>$400</span><span>$300</span><span>$200</span><span>$100</span><span>$0</span></div>
-                <div class="plot">
-                  <div class="area"></div>
-                  <svg class="line-svg" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
-                    <path d="M0,245 L100,214 L200,226 L300,158 L400,180 L500,112 L600,150 L700,62 L800,112 L900,66 L1000,30" fill="none" stroke="#6d5dfc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="700" cy="62" r="6" fill="#ffffff" stroke="#6d5dfc" stroke-width="4"/><circle cx="1000" cy="30" r="6" fill="#ffffff" stroke="#6d5dfc" stroke-width="4"/>
-                  </svg>
-                </div>
-                <div class="x-labels"><span>Sep 9</span><span>Sep 10</span><span>Sep 11</span><span>Sep 12</span><span>Sep 13</span><span>Sep 14</span><span>Sep 15</span></div>
+        <div class="panel-body">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+              <h3 style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Active Circuit Breakers</h3>
+              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);">Max Trajectory Steps</span>
+                <span class="mono" style="font-weight:600;">50 steps / run</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);">Velocity Spin Threshold</span>
+                <span class="mono" style="font-weight:600;">15 req / 10s</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span style="color:var(--text-muted);">Loop Heuristics</span>
+                <span class="badge-status active">ENABLED</span>
               </div>
             </div>
-            <div class="chart-legend"><div class="legend"><span class="legend-dot lg1"></span>Gateway spend</div><div class="legend"><span class="legend-dot lg2"></span>Forecast</div></div>
-          </div>
 
-          <div class="card budget-card" id="budgets">
-            <div class="card-head"><div><div class="title">Budget guardrail</div><div class="subtitle">Workspace hard stop</div></div><span class="badge green">ACTIVE</span></div>
-            <div class="budget-main">
-              <div class="budget-amount"><div class="big">$1,840</div><div class="small">/ $2,500 limit</div></div>
-              <div class="budget-track"><span></span></div>
-              <div class="budget-meta"><span>73.6% committed</span><span>$659.80 remaining</span></div>
-              <div class="kill">
-                <div class="kill-row"><div><div class="kill-title">Emergency kill-switch</div><div class="kill-text">Reject requests once budget is reached.</div></div><div class="switch"><span></span></div></div>
+            <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+              <h3 style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Default Run Budgets</h3>
+              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);">Default Ceiling</span>
+                <span class="mono" style="font-weight:600;">$1.00 USD</span>
               </div>
-              <div class="budget-foot"><div class="mini-kpi"><div class="label">Daily avg.</div><div class="val">$262</div></div><div class="mini-kpi"><div class="label">Est. month-end</div><div class="val">$2,214</div></div><div class="mini-kpi"><div class="label">Headroom</div><div class="val">25.6%</div></div></div>
+              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--text-muted);">Pre-Flight Reserve</span>
+                <span class="badge-status active">REDIS ATOMIC</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span style="color:var(--text-muted);">True-Up Reconcile</span>
+                <span class="badge-status active">LIVE ON FINISH</span>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="bottom-grid">
-          <div class="card table-card" id="tenants">
-            <div class="card-head"><div><div class="title">Top tenants</div><div class="subtitle">Consumption across your customer accounts</div></div><button class="btn" style="padding:7px 10px;font-size:10px">Manage tenants</button></div>
-            <table class="table">
-              <thead><tr><th>Tenant</th><th>Spend</th><th>Token usage</th><th>Status</th></tr></thead>
+    <!-- ===================================================================
+         TAB 3: AI WALLET & FINANCIAL LEDGER
+         =================================================================== -->
+    <div id="tab-wallet" class="tab-pane">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Spend Exposure &amp; Controls</h2>
+            <p class="panel-desc">Real-money spendable wallet balance and hard exposure limits.</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="openModal('modal-exposure')">Configure Cap</button>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-topup')">+ Top Up</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12.5px; font-weight:600;">
+              <span>Exposure Limit Usage</span>
+              <span class="mono">
+                {% if wallet %}{{ "{:,.2f}".format(wallet.exposure_used_cents / 100) }} {{ wallet.currency }}{% else %}$0.00{% endif %}
+                /
+                {% if wallet and wallet.exposure_cap_cents %}{{ "{:,.2f}".format(wallet.exposure_cap_cents / 100) }} {{ wallet.currency }}{% else %}Unlimited{% endif %}
+              </span>
+            </div>
+            <div style="width:100%; height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+              {% set pct = ((wallet.exposure_used_cents / wallet.exposure_cap_cents) * 100) if (wallet and wallet.exposure_cap_cents and wallet.exposure_cap_cents > 0) else 0 %}
+              <div style="width:{{ [pct, 100] | min }}%; height:100%; background:var(--primary); border-radius:999px;"></div>
+            </div>
+          </div>
+
+          <h3 style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:12px;">Financial Audit Ledger</h3>
+          <div class="table-wrap">
+            {% if ledger_entries and ledger_entries|length > 0 %}
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Entry Type</th>
+                  <th>Movement</th>
+                  <th>Upstream Cost</th>
+                  <th>Platform Cut</th>
+                  <th>Balance After</th>
+                  <th>Reference</th>
+                </tr>
+              </thead>
               <tbody>
-                <tr><td><div class="tenant"><div class="tenant-icon">NS</div><div><div class="tenant-name">Northstar Labs</div><div class="tenant-sub">tenant_9ab2</div></div></div></td><td><strong>$482.10</strong></td><td><div class="usage">109.4M<div class="usage-bar"><span style="width:82%"></span></div></div></td><td><span class="badge green">Healthy</span></td></tr>
-                <tr><td><div class="tenant"><div class="tenant-icon" style="background:#f2ecff;color:#795ce7">FR</div><div><div class="tenant-name">Frame AI</div><div class="tenant-sub">tenant_2c1e</div></div></div></td><td><strong>$356.84</strong></td><td><div class="usage">87.2M<div class="usage-bar"><span style="width:65%"></span></div></div></td><td><span class="badge green">Healthy</span></td></tr>
-                <tr><td><div class="tenant"><div class="tenant-icon" style="background:#eaf4ff;color:#3c7dde">VT</div><div><div class="tenant-name">Vector Tools</div><div class="tenant-sub">tenant_7f88</div></div></div></td><td><strong>$291.55</strong></td><td><div class="usage">64.8M<div class="usage-bar"><span style="width:49%"></span></div></div></td><td><span class="badge amber">Near limit</span></td></tr>
-                <tr><td><div class="tenant"><div class="tenant-icon" style="background:#fff0e8;color:#c96d21">MO</div><div><div class="tenant-name">MotionOps</div><div class="tenant-sub">tenant_31a5</div></div></div></td><td><strong>$217.18</strong></td><td><div class="usage">42.1M<div class="usage-bar"><span style="width:31%"></span></div></div></td><td><span class="badge green">Healthy</span></td></tr>
+                {% for e in ledger_entries %}
+                <tr>
+                  <td class="mono" style="color:var(--text-muted);">{{ e.created_at.strftime('%b %d, %H:%M:%S') }}</td>
+                  <td><span class="id-pill">{{ e.entry_type }}</span></td>
+                  <td>
+                    <span class="mono" style="font-weight:600; color:{% if e.wallet_delta_cents >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+                      {% if e.wallet_delta_cents >= 0 %}+{% endif %}{{ "{:,.2f}".format(e.wallet_delta_cents / 100) }} {{ e.currency }}
+                    </span>
+                  </td>
+                  <td class="mono" style="color:var(--text-muted);">{{ "{:,.2f}".format(e.upstream_provider_cost_cents / 100) }} {{ e.currency }}</td>
+                  <td class="mono" style="color:var(--text-muted);">{{ "{:,.2f}".format(e.platform_revenue_delta_cents / 100) }} {{ e.currency }}</td>
+                  <td class="mono" style="font-weight:600;">{{ "{:,.2f}".format(e.balance_after_cents / 100) }} {{ e.currency }}</td>
+                  <td style="color:var(--text-muted); font-size:12px;">{{ e.description or e.reference_id }}</td>
+                </tr>
+                {% endfor %}
               </tbody>
             </table>
-          </div>
-
-          <div class="card activity" id="requests">
-            <div class="card-head"><div><div class="title">Recent gateway activity</div><div class="subtitle">Live policy events and anomalies</div></div><span class="badge green">LIVE</span></div>
-            <div class="activity-row"><div class="activity-mark" style="background:#fdeaea;color:#d74747"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m8.7 8.7 6.6 6.6"/></svg></div><div class="activity-copy"><div class="activity-title">Budget threshold blocked</div><div class="activity-meta">tenant_7f88 · 2 min ago · gpt-4.1</div></div><div class="activity-value">$4.82 saved</div></div>
-            <div class="activity-row"><div class="activity-mark" style="background:#eaf2ff;color:#3378e8"><svg viewBox="0 0 24 24"><path d="M12 3v18M17 7.5c0-1.9-2-3.2-5-3.2S7 5.1 7 7.1c0 5.6 10 2.3 10 8.3 0 2-2 3.8-5 3.8s-5-1.6-5-3.5"/></svg></div><div class="activity-copy"><div class="activity-title">Spend anomaly detected</div><div class="activity-meta">tenant_9ab2 · 11 min ago · +34% vs baseline</div></div><div class="activity-value">Review</div></div>
-            <div class="activity-row"><div class="activity-mark" style="background:#e7f7f0;color:#159b68"><svg viewBox="0 0 24 24"><path d="M4.5 12.5 9.2 17 19.5 6.8"/></svg></div><div class="activity-copy"><div class="activity-title">Semantic cache served</div><div class="activity-meta">api/chat · 18 min ago · claude-3.5-sonnet</div></div><div class="activity-value">$2.14 saved</div></div>
-            <div class="activity-row"><div class="activity-mark" style="background:#fff4df;color:#c77d09"><svg viewBox="0 0 24 24"><path d="M12 4v9M12 17v2"/><circle cx="12" cy="12" r="9"/></svg></div><div class="activity-copy"><div class="activity-title">Rate limit reached</div><div class="activity-meta">tenant_2c1e · 26 min ago · 120 req/min</div></div><div class="activity-value">429</div></div>
+            {% else %}
+            <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:13px;">
+              No ledger entries recorded yet.
+            </div>
+            {% endif %}
           </div>
         </div>
-        <div class="footer-note">SpendGuard AI · inline AI gateway · All systems operational</div>
-      </section>
-    </main>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 4: INTEGRATION & SDK
+         =================================================================== -->
+    <div id="tab-quickstart" class="tab-pane">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">SDK Quickstart</h2>
+            <p class="panel-desc">Point OpenAI client libraries directly to your SpendGuard endpoint.</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="code-window">
+            <div class="code-nav">
+              <div class="code-lang-tabs">
+                <button class="code-lang-btn active" onclick="switchSnippet('python', this)">Python</button>
+                <button class="code-lang-btn" onclick="switchSnippet('node', this)">Node.js</button>
+                <button class="code-lang-btn" onclick="switchSnippet('curl', this)">cURL</button>
+              </div>
+              <button class="btn btn-secondary btn-sm" style="background:#27272a; color:#fff; border:none;" onclick="copyActiveCode()">Copy</button>
+            </div>
+            <pre class="code-block active" id="snippet-python"><span class="c-kw">from</span> openai <span class="c-kw">import</span> OpenAI
+
+client = OpenAI(
+    <span class="c-kw">base_url</span>=<span class="c-str">"{{ gateway_url }}"</span>,
+    <span class="c-kw">api_key</span> =<span class="c-str">"<span class="snippet-key-ph">YOUR_SPENDGUARD_API_KEY</span>"</span>,
+)
+
+response = client.chat.completions.create(
+    <span class="c-kw">model</span>=<span class="c-str">"gpt-4o-mini"</span>,
+    <span class="c-kw">messages</span>=[{<span class="c-str">"role"</span>: <span class="c-str">"user"</span>, <span class="c-str">"content"</span>: <span class="c-str">"Hello SpendGuard!"</span>}],
+    <span class="c-kw">extra_headers</span>={<span class="c-str">"X-End-User-Id"</span>: <span class="c-str">"customer_123"</span>},
+)
+print(response.choices[0].message.content)</pre>
+
+            <pre class="code-block" id="snippet-node"><span class="c-kw">import</span> OpenAI <span class="c-kw">from</span> <span class="c-str">"openai"</span>;
+
+<span class="c-kw">const</span> client = <span class="c-kw">new</span> OpenAI({
+  <span class="c-kw">baseURL</span>: <span class="c-str">"{{ gateway_url }}"</span>,
+  <span class="c-kw">apiKey</span>:  <span class="c-str">"<span class="snippet-key-ph">YOUR_SPENDGUARD_API_KEY</span>"</span>,
+});
+
+<span class="c-kw">const</span> response = <span class="c-kw">await</span> client.chat.completions.create({
+  <span class="c-kw">model</span>: <span class="c-str">"gpt-4o-mini"</span>,
+  <span class="c-kw">messages</span>: [{ <span class="c-kw">role</span>: <span class="c-str">"user"</span>, <span class="c-kw">content</span>: <span class="c-str">"Hello SpendGuard!"</span> }],
+}, {
+  <span class="c-kw">headers</span>: { <span class="c-str">"X-End-User-Id"</span>: <span class="c-str">"customer_123"</span> },
+});
+console.log(response.choices[0].message.content);</pre>
+
+            <pre class="code-block" id="snippet-curl">curl -X POST <span class="c-str">"{{ gateway_url }}/chat/completions"</span> \
+  -H <span class="c-str">"Authorization: Bearer <span class="snippet-key-ph">YOUR_SPENDGUARD_API_KEY</span>"</span> \
+  -H <span class="c-str">"Content-Type: application/json"</span> \
+  -H <span class="c-str">"X-End-User-Id: customer_123"</span> \
+  -d <span class="c-str">'{
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Hello SpendGuard!"}]
+  }'</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         TAB 5: UPGRADE PLANS
+         =================================================================== -->
+    {% if active_project.tier == 'free' %}
+    <div id="tab-upgrade" class="tab-pane">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Developer Subscription Plans</h2>
+            <p class="panel-desc">Unlock real-money spendable AI wallets, exposure caps, and automated split settlements.</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
+            {% for plan in plans %}
+            <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span style="font-weight:700; font-size:15px;">{{ plan.display_name }}</span>
+                  <span class="tier-badge paid">{{ plan.tier }}</span>
+                </div>
+                <div class="mono" style="font-size:20px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">
+                  {{ "{:,.2f}".format(plan.charge_amount_cents / 100) }} <span style="font-size:12px; color:var(--text-muted);">{{ plan.currency }}</span>
+                </div>
+                <p style="font-size:12.5px; color:var(--text-secondary); margin-bottom:14px;">{{ plan.description }}</p>
+
+                <div style="background:#ffffff; border:1px solid var(--border); border-radius:var(--radius-md); padding:10px; font-size:12px; margin-bottom:16px;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span style="color:var(--text-muted);">Spendable AI Wallet:</span>
+                    <strong class="mono">{{ "{:,.2f}".format(plan.wallet_allocation_cents / 100) }} {{ plan.currency }}</strong>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span style="color:var(--text-muted);">Developer Share:</span>
+                    <strong class="mono" style="color:var(--success);">{{ "{:,.2f}".format(plan.developer_share_cents / 100) }} {{ plan.currency }}</strong>
+                  </div>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Platform Cut:</span>
+                    <span class="mono">{{ "{:,.2f}".format(plan.platform_fee_cents / 100) }} {{ plan.currency }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" style="width:100%;" onclick="activatePlan('{{ plan.plan_id }}', '{{ plan.display_name }}')">
+                Activate Plan
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </main>
+</div>
+
+<!-- ===================================================================
+     MODALS
+     =================================================================== -->
+
+<!-- Modal: Create Key -->
+<div class="modal-overlay" id="modal-key" onclick="if(event.target===this) closeModal('modal-key')">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2 class="modal-title">Create Secret Key</h2>
+      <button class="modal-close" onclick="closeModal('modal-key')">&times;</button>
+    </div>
+    <form onsubmit="handleKeySubmit(event)">
+      <div class="modal-body">
+        <div class="form-field">
+          <label class="form-label">Key Name / Description</label>
+          <input type="text" id="key-name-val" class="form-input" placeholder="e.g. Production Backend" required autofocus />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-key')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btn-gen-key">Create Key</button>
+      </div>
+    </form>
   </div>
+</div>
 
-  <script>
-    // Static UI interactions only — replace these with your app wiring.
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => {
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
+<!-- Modal: Top Up Wallet -->
+<div class="modal-overlay" id="modal-topup" onclick="if(event.target===this) closeModal('modal-topup')">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2 class="modal-title">Top Up Workspace Balance</h2>
+      <button class="modal-close" onclick="closeModal('modal-topup')">&times;</button>
+    </div>
+    <form onsubmit="handleTopUp(event)">
+      <div class="modal-body">
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+          Fund real-money balance used for agent token completions and reservations.
+        </p>
+        <div class="form-field">
+          <label class="form-label">Amount in USD (Cents)</label>
+          <input type="number" id="topup-amt" class="form-input" placeholder="1000 ($10.00)" min="50" required autofocus />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-topup')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btn-submit-topup">Add Funds</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Exposure Cap -->
+<div class="modal-overlay" id="modal-exposure" onclick="if(event.target===this) closeModal('modal-exposure')">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2 class="modal-title">Configure Hard Spend Cap</h2>
+      <button class="modal-close" onclick="closeModal('modal-exposure')">&times;</button>
+    </div>
+    <form onsubmit="handleExposure(event)">
+      <div class="modal-body">
+        <div class="form-field">
+          <label class="form-label">Hard Spend Cap (USD Cents, blank for unlimited)</label>
+          <input type="number" id="exp-cap-val" class="form-input" placeholder="e.g. 5000 ($50.00)" value="{% if wallet and wallet.exposure_cap_cents %}{{ wallet.exposure_cap_cents }}{% endif %}" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-exposure')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btn-save-exp">Save Settings</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Create Workspace -->
+<div class="modal-overlay" id="modal-workspace" onclick="if(event.target===this) closeModal('modal-workspace')">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2 class="modal-title">Create Workspace</h2>
+      <button class="modal-close" onclick="closeModal('modal-workspace')">&times;</button>
+    </div>
+    <form onsubmit="handleWorkspaceSubmit(event)">
+      <div class="modal-body">
+        <div class="form-field">
+          <label class="form-label">Workspace Name</label>
+          <input type="text" id="ws-name-val" class="form-input" placeholder="e.g. Production App" required autofocus />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-workspace')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btn-create-ws">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- JavaScript Core -->
+<script>
+  const ACTIVE_PROJECT_ID = "{{ active_project.project_id }}";
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2600);
+  }
+
+  function copyText(text, msg = "Copied to clipboard") {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => showToast(msg));
+  }
+
+  function copyGeneratedKey() {
+    const k = document.getElementById("displayed-raw-key").value;
+    copyText(k, "API Key copied!");
+  }
+
+  function openModal(id) { document.getElementById(id).classList.add("open"); }
+  function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+  // Keyboard shortcut to close modals with Escape
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal-overlay.open").forEach(m => m.classList.remove("open"));
+    }
+  });
+
+  function switchDashboardTab(tabId, el) {
+    document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
+    document.getElementById(tabId).classList.add("active");
+    if (el) el.classList.add("active");
+  }
+
+  function switchSnippet(lang, btn) {
+    document.querySelectorAll(".code-lang-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".code-block").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`snippet-${lang}`).classList.add("active");
+  }
+
+  function copyActiveCode() {
+    const act = document.querySelector(".code-block.active");
+    if (act) copyText(act.innerText, "Snippet copied to clipboard");
+  }
+
+  async function handleKeySubmit(e) {
+    e.preventDefault();
+    const name = document.getElementById("key-name-val").value.trim() || "Production Key";
+    const btn = document.getElementById("btn-gen-key");
+    btn.disabled = true; btn.textContent = "Creating...";
+
+    try {
+      const resp = await fetch("/api/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID, name }),
       });
-    });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Key creation failed");
+      closeModal("modal-key");
 
-    document.querySelector('.switch')?.addEventListener('click', function(){
-      const on = this.dataset.on === 'true';
-      this.dataset.on = String(!on);
-      this.style.justifyContent = on ? 'flex-start' : 'flex-end';
-      this.style.background = on ? '#2b2d33' : '#6d5dfc';
-    });
-  </script>
+      document.getElementById("displayed-raw-key").value = data.raw_key;
+      document.getElementById("new-key-banner").style.display = "block";
+      document.querySelectorAll(".snippet-key-ph").forEach(el => el.textContent = data.raw_key);
+      showToast("API Key created! Save it immediately.");
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Create Key";
+    }
+  }
+
+  async function revokeKey(keyId, keyName) {
+    if (!confirm(`Revoke key "${keyName}"? All downstream traffic using it will fail immediately.`)) return;
+
+    try {
+      const resp = await fetch(`/api/keys/${keyId}/revoke?project_id=${ACTIVE_PROJECT_ID}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Revocation failed");
+      showToast("Key revoked");
+      setTimeout(() => window.location.reload(), 500);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function handleTopUp(e) {
+    e.preventDefault();
+    const val = document.getElementById("topup-amt").value;
+    const btn = document.getElementById("btn-submit-topup");
+    btn.disabled = true; btn.textContent = "Processing...";
+
+    try {
+      const resp = await fetch("/api/wallets/topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID, amount_cents: parseInt(val, 10) }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Top-up failed");
+      closeModal("modal-topup");
+      showToast(`Added $${(parseInt(val, 10) / 100).toFixed(2)} USD to workspace balance!`);
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Add Funds";
+    }
+  }
+
+  async function handleExposure(e) {
+    e.preventDefault();
+    const val = document.getElementById("exp-cap-val").value.trim();
+    const devPays = document.getElementById("exp-dev-pays").checked;
+    const btn = document.getElementById("btn-save-exp");
+    btn.disabled = true; btn.textContent = "Saving...";
+
+    try {
+      const resp = await fetch("/api/subscriptions/exposure-cap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: ACTIVE_PROJECT_ID,
+          exposure_cap_cents: val ? parseInt(val, 10) * 100 : null,
+          developer_pays_upstream_cost: devPays,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Failed to save exposure");
+      closeModal("modal-exposure");
+      showToast("Spend exposure settings updated!");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Save Settings";
+    }
+  }
+
+  async function activatePlan(planId, planName) {
+    if (!confirm(`Activate ${planName}?`)) return;
+
+    try {
+      showToast(`Activating ${planName}...`);
+      const resp = await fetch("/api/subscriptions/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID, plan_id: planId }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Checkout failed");
+
+      const conf = await fetch("/api/subscriptions/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: data.session_id }),
+      });
+      const confData = await conf.json();
+      if (!conf.ok) throw new Error(confData.error || "Confirmation failed");
+
+      showToast(`Activated ${planName}!`);
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function handleWorkspaceSubmit(e) {
+    e.preventDefault();
+    const name = document.getElementById("ws-name-val").value.trim();
+    if (!name) return;
+    const btn = document.getElementById("btn-create-ws");
+    btn.disabled = true; btn.textContent = "Creating...";
+
+    try {
+      const resp = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Workspace creation failed");
+      closeModal("modal-workspace");
+      showToast("Workspace created!");
+      setTimeout(() => window.location.href = `/dashboard?project_id=${data.project.project_id}`, 600);
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Create";
+    }
+  }
+</script>
 </body>
 </html>

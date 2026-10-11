@@ -7,7 +7,8 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Use npm run test:gateway to run the local integration smoke test\"",
+    "test:gateway": "node test_gateway.mjs"
   },
   "repository": {
     "type": "git",
@@ -23,7 +24,6 @@
   "homepage": "https://github.com/BIRU-sketch/spendguardai#readme",
   "dependencies": {
     "openai": "^7.15.0",
-    "stripe": "^16.0.0",
-    "type": "module"
+    "stripe": "^16.0.0"
   }
 }
