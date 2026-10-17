@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spendguard"
+name = "sg-run"
 version = "2.0.0"
 description = "Agent-native hard cost control layer SDK for autonomous AI systems"
 readme = "README.md"
@@ -16,4 +16,4 @@ dependencies = [
 openai = ["openai>=1.0.0"]
 
 [tool.setuptools.packages.find]
-include = ["spendguard*"]
+include = ["spendguard*", "sg_run*"]

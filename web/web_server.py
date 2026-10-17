@@ -15,12 +15,15 @@ if str(PROJECT_ROOT) not in sys.path:
 
 load_dotenv(PROJECT_ROOT / ".env")
 
-from supabase import create_client, Client
 from app.auth import PostgresAPIKeyStore, Project, APIKeyInfo
 from app.config import config
 from app.budget import AgentBudgetManager
 
-supabase: Client = create_client(os.getenv("SUPABASE_URL", ""), os.getenv("SUPABASE_KEY", ""))
+try:
+    from supabase import create_client, Client
+    supabase = create_client(os.getenv("SUPABASE_URL", ""), os.getenv("SUPABASE_KEY", ""))
+except Exception:
+    supabase = None
 app = Flask(__name__)
 
 

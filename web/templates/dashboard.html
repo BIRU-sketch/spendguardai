@@ -1,1454 +1,301 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SpendGuard AI &bull; Developer Dashboard</title>
-<meta name="description" content="Agent-Native Cost Control Center. Real-time run budget enforcement, pre-flight reservation, true-up settlement, and runaway loop protection." />
-
-<!-- Typography: Inter (UI) & JetBrains Mono (Data/Code) -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-<style>
-  :root {
-    --bg-app: #f8fafc;
-    --bg-surface: #ffffff;
-    --bg-subtle: #f1f5f9;
-    --bg-hover: #f8fafc;
-    --bg-dark: #09090b;
-    --bg-dark-card: #121215;
-
-    --border: #e2e8f0;
-    --border-subtle: #edf2f7;
-    --border-dark: #27272a;
-
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
-    --text-dim: #94a3b8;
-
-    --primary: #0f172a;
-    --primary-hover: #1e293b;
-    --accent: #2563eb;
-    --accent-subtle: #eff6ff;
-    --accent-border: #bfdbfe;
-
-    --success: #059669;
-    --success-subtle: #ecfdf5;
-    --success-border: #a7f3d0;
-
-    --warning: #d97706;
-    --warning-subtle: #fffbeb;
-    --warning-border: #fde68a;
-
-    --danger: #dc2626;
-    --danger-subtle: #fef2f2;
-    --danger-border: #fecaca;
-
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
-    --radius-xl: 12px;
-
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    width: 100%;
-    min-height: 100vh;
-    background-color: var(--bg-app);
-    color: var(--text-primary);
-    font-family: var(--font-sans);
-    font-size: 14px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.011em;
-  }
-
-  .mono {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* App Shell */
-  .app-shell {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-  }
-
-  /* -------------------------------------------------------------------
-     TOP NAVIGATION BAR (Vercel / Stripe Style)
-     ------------------------------------------------------------------- */
-  .top-nav {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: #ffffff;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .nav-container {
-    max-width: 1360px;
-    margin: 0 auto;
-    padding: 0 24px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  .nav-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .brand-mark {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    color: var(--text-primary);
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: -0.02em;
-  }
-
-  .brand-icon {
-    width: 24px;
-    height: 24px;
-    background: var(--text-primary);
-    color: #ffffff;
-    border-radius: var(--radius-md);
-    display: grid;
-    place-items: center;
-  }
-  .brand-icon svg { width: 14px; height: 14px; stroke: #fff; stroke-width: 2.2; fill: none; }
-
-  .nav-divider {
-    width: 1px;
-    height: 18px;
-    background: var(--border);
-  }
-
-  /* Workspace Selector */
-  .workspace-dropdown {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    padding: 4px 10px;
-    border-radius: var(--radius-md);
-    transition: border-color 0.15s ease;
-  }
-  .workspace-dropdown:hover {
-    border-color: var(--text-muted);
-  }
-
-  .workspace-select {
-    background: transparent;
-    border: none;
-    font-family: var(--font-sans);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-    cursor: pointer;
-    outline: none;
-  }
-
-  .tier-badge {
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: var(--accent-subtle);
-    color: var(--accent);
-    border: 1px solid var(--accent-border);
-  }
-
-  .tier-badge.paid {
-    background: var(--success-subtle);
-    color: var(--success);
-    border-color: var(--success-border);
-  }
-
-  .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .status-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text-muted);
-    padding: 4px 10px;
-    border-radius: var(--radius-md);
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--success);
-  }
-
-  .user-menu {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .user-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--text-primary);
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 700;
-    display: grid;
-    place-items: center;
-  }
-
-  .btn-signout {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-    text-decoration: none;
-    padding: 5px 10px;
-    border-radius: var(--radius-md);
-    transition: color 0.15s ease;
-  }
-  .btn-signout:hover { color: var(--danger); }
-
-  /* -------------------------------------------------------------------
-     MAIN CONTENT CANVAS
-     ------------------------------------------------------------------- */
-  .main-canvas {
-    max-width: 1360px;
-    margin: 0 auto;
-    padding: 28px 24px 80px;
-    width: 100%;
-    flex: 1;
-  }
-
-  /* Page Header */
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .header-left h1 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .header-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-top: 4px;
-  }
-
-  .id-pill {
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    padding: 1px 6px;
-    border-radius: 4px;
-    color: var(--text-secondary);
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  /* Standard Buttons */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border-radius: var(--radius-md);
-    font-family: var(--font-sans);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    text-decoration: none;
-    border: 1px solid transparent;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-  }
-  .btn svg { width: 14px; height: 14px; stroke-width: 2; fill: none; }
-
-  .btn-primary {
-    background: var(--primary);
-    color: #ffffff;
-    border-color: var(--primary);
-  }
-  .btn-primary:hover {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
-  }
-
-  .btn-secondary {
-    background: #ffffff;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-  }
-  .btn-secondary:hover {
-    background: var(--bg-subtle);
-    border-color: var(--text-muted);
-  }
-
-  .btn-danger {
-    background: #ffffff;
-    color: var(--danger);
-    border: 1px solid var(--danger-border);
-  }
-  .btn-danger:hover {
-    background: var(--danger-subtle);
-  }
-
-  .btn-sm {
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-
-  /* -------------------------------------------------------------------
-     METRICS OVERVIEW GRID
-     ------------------------------------------------------------------- */
-  .metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 28px;
-  }
-  @media (max-width: 1024px) {
-    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 640px) {
-    .metrics-grid { grid-template-columns: 1fr; }
-  }
-
-  .metric-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 18px 20px;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .metric-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-
-  .metric-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .metric-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-    margin-bottom: 4px;
-  }
-
-  .metric-sub {
-    font-size: 12px;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  /* -------------------------------------------------------------------
-     TAB NAVIGATION BAR (Linear / Supabase Style)
-     ------------------------------------------------------------------- */
-  .tabs-bar {
-    display: flex;
-    gap: 24px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 24px;
-    overflow-x: auto;
-  }
-
-  .tab-item {
-    padding: 10px 0;
-    font-size: 13.5px;
-    font-weight: 500;
-    color: var(--text-muted);
-    cursor: pointer;
-    position: relative;
-    border: none;
-    background: transparent;
-    transition: color 0.15s ease;
-    white-space: nowrap;
-  }
-  .tab-item:hover { color: var(--text-primary); }
-
-  .tab-item.active {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-  .tab-item.active::after {
-    content: "";
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--text-primary);
-  }
-
-  .tab-pane { display: none; }
-  .tab-pane.active { display: block; }
-
-  /* -------------------------------------------------------------------
-     PANELS & CARDS
-     ------------------------------------------------------------------- */
-  .panel {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 24px;
-    overflow: hidden;
-  }
-
-  .panel-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .panel-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .panel-desc {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
-
-  .panel-body {
-    padding: 20px;
-  }
-
-  /* -------------------------------------------------------------------
-     DATA TABLES (Stripe / GitHub Style)
-     ------------------------------------------------------------------- */
-  .table-wrap {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  table.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    text-align: left;
-  }
-
-  table.data-table th {
-    background: var(--bg-subtle);
-    color: var(--text-muted);
-    font-weight: 600;
-    font-size: 11.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  table.data-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
-
-  table.data-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  table.data-table tr:hover td {
-    background: var(--bg-hover);
-  }
-
-  .badge-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11.5px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
-  }
-  .badge-status.active {
-    background: var(--success-subtle);
-    color: var(--success);
-    border: 1px solid var(--success-border);
-  }
-  .badge-status.revoked {
-    background: var(--danger-subtle);
-    color: var(--danger);
-    border: 1px solid var(--danger-border);
-  }
-  .badge-status.pending {
-    background: var(--warning-subtle);
-    color: var(--warning);
-    border: 1px solid var(--warning-border);
-  }
-
-  /* -------------------------------------------------------------------
-     CODE SNIPPET WINDOW
-     ------------------------------------------------------------------- */
-  .code-window {
-    background: var(--bg-dark);
-    color: #e4e4e7;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    border: 1px solid var(--border-dark);
-  }
-
-  .code-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #18181b;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--border-dark);
-  }
-
-  .code-lang-tabs {
-    display: flex;
-    gap: 4px;
-  }
-
-  .code-lang-btn {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11.5px;
-    color: #a1a1aa;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-family: var(--font-mono);
-  }
-  .code-lang-btn.active {
-    background: #27272a;
-    color: #ffffff;
-  }
-
-  .code-block {
-    padding: 16px;
-    overflow-x: auto;
-    line-height: 1.6;
-    margin: 0;
-    display: none;
-  }
-  .code-block.active { display: block; }
-  .c-kw { color: #38bdf8; }
-  .c-str { color: #4ade80; }
-  .c-comment { color: #71717a; }
-
-  /* -------------------------------------------------------------------
-     MODAL DIALOGS
-     ------------------------------------------------------------------- */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(9, 9, 11, 0.5);
-    backdrop-filter: blur(4px);
-    z-index: 100;
-    display: none;
-    place-items: center;
-    padding: 16px;
-  }
-  .modal-overlay.open { display: grid; }
-
-  .modal-card {
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    max-width: 460px;
-    width: 100%;
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-  }
-
-  .modal-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .modal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
-  .modal-close {
-    background: transparent; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer;
-  }
-  .modal-close:hover { color: var(--text-primary); }
-
-  .modal-body { padding: 20px; }
-  .modal-footer {
-    padding: 12px 20px;
-    background: var(--bg-subtle);
-    border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-
-  .form-field { margin-bottom: 16px; }
-  .form-label {
-    display: block;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-  }
-  .form-input, .form-select {
-    width: 100%;
-    height: 38px;
-    padding: 0 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: #ffffff;
-    font-family: var(--font-sans);
-    font-size: 13.5px;
-    color: var(--text-primary);
-    outline: none;
-    transition: border-color 0.15s ease;
-  }
-  .form-input:focus, .form-select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-  }
-
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 200;
-    background: var(--bg-dark);
-    color: #ffffff;
-    padding: 10px 18px;
-    border-radius: var(--radius-md);
-    font-size: 13px;
-    font-weight: 500;
-    box-shadow: var(--shadow-lg);
-    transform: translateY(60px);
-    opacity: 0;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .toast.show { transform: translateY(0); opacity: 1; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpendGuard AI &bull; Agent Control Center</title>
+  <meta name="description" content="Lean agent-native hard cost control dashboard and guided quickstart." />
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Design System & Dashboard CSS -->
+  <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
+  <div class="dashboard-layout">
 
-<div class="app-shell">
-
-  <!-- ===================================================================
-       GLOBAL NAVIGATION
-       =================================================================== -->
-  <header class="top-nav">
-    <div class="nav-container">
-      <div class="nav-left">
-        <a href="/dashboard" class="brand-mark">
-          <div class="brand-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
-          </div>
-          <span>SpendGuard</span>
+    <!-- Top Navigation -->
+    <header class="top-nav">
+      <div class="nav-inner">
+        <a href="/dashboard" class="nav-brand">
+          <div class="brand-badge-logo">SG</div>
+          <span class="brand-text">SpendGuard AI</span>
         </a>
 
-        <div class="nav-divider"></div>
-
-        <div class="workspace-dropdown">
-          <select class="workspace-select" onchange="window.location.href='/dashboard?project_id=' + this.value">
-            {% for p in projects %}
-            <option value="{{ p.project_id }}" {% if p.project_id == active_project.project_id %}selected{% endif %}>
-              {{ p.name }}
-            </option>
-            {% endfor %}
-          </select>
-          <span class="tier-badge {% if active_project.tier != 'free' %}paid{% endif %}">
-            {{ active_project.tier }}
+        <div class="nav-actions">
+          <span class="demo-badge" title="Running in frontend client mock mode">
+            <span class="demo-pulse"></span> Demo data
           </span>
-        </div>
 
-        <button class="btn btn-secondary btn-sm" onclick="openModal('modal-workspace')">+ New</button>
-      </div>
+          <button id="nav-setup-guide" class="btn-nav-link" type="button">
+            ⚡ Setup guide
+          </button>
 
-      <div class="nav-right">
-        <div class="status-indicator">
-          <span class="status-dot"></span>
-          <span>Gateway Active</span>
-        </div>
-
-        <div class="nav-divider"></div>
-
-        <div class="user-menu">
-          <div class="user-avatar">{{ user.name[:2].upper() if user.name else 'SG' }}</div>
-          <a href="/auth/signout" class="btn-signout">Sign Out</a>
+          <button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Toggle theme">
+            🌙 Dark
+          </button>
         </div>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <!-- ===================================================================
-       MAIN CONTENT CONTAINER
-       =================================================================== -->
-  <main class="main-canvas">
-
-    <!-- Page Title & Actions -->
-    <div class="page-header">
-      <div class="header-left">
-        <h1>{{ active_project.name }}</h1>
-        <div class="header-meta">
-          <span>Project ID:</span>
-          <span class="id-pill">{{ active_project.project_id }}</span>
-          <button class="btn btn-secondary btn-sm" style="padding: 2px 6px; font-size: 11px;" onclick="copyText('{{ active_project.project_id }}', 'Copied project ID')">Copy</button>
-        </div>
+    <!-- Demo State Controller Bar (For testing empty & error states quickly) -->
+    <aside class="demo-bar" aria-label="Mock state controls">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <strong style="color: var(--color-text);">Mock Mode:</strong>
+        <span>Toggle dataset views for testing:</span>
       </div>
-
-      <div class="header-actions">
-        {% if active_project.tier != 'free' %}
-        <button class="btn btn-secondary" onclick="openModal('modal-topup')">Top Up Wallet</button>
-        {% endif %}
-        <button class="btn btn-primary" onclick="openModal('modal-key')">+ Create API Key</button>
+      <div class="demo-bar-actions">
+        <a href="/dashboard" class="demo-chip-btn" id="demo-normal-link">Normal</a>
+        <a href="/dashboard?empty=1" class="demo-chip-btn" id="demo-empty-link">Empty (?empty=1)</a>
+        <a href="/dashboard?error=1" class="demo-chip-btn" id="demo-error-link">Error (?error=1)</a>
+        <a href="#" class="demo-chip-btn" id="demo-reset-btn" title="Clear localStorage mock state">Reset Data</a>
       </div>
-    </div>
+    </aside>
 
-    <!-- Alert Banner: Newly Generated Secret Key -->
-    <div id="new-key-banner" style="display:none; margin-bottom:24px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius-lg); padding:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <span style="font-size:13px; font-weight:600; color:#15803d;">API Key Generated Successfully</span>
-        <span style="font-size:12px; color:#dc2626;">Save this key now &bull; It will not be shown again</span>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <input type="text" id="displayed-raw-key" readonly class="form-input mono" style="background:#ffffff; font-weight:600; color:#0f172a;" />
-        <button class="btn btn-primary btn-sm" onclick="copyGeneratedKey()">Copy</button>
-      </div>
-    </div>
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Page Header -->
+      <section class="header-row">
+        <div class="header-title-group">
+          <h1>Agent Control Center</h1>
+          <p class="header-subtitle">
+            Pre-flight spend ceilings, atomic reservations, and trajectory runaway loop protection.
+          </p>
+        </div>
+        <div class="header-action-group">
+          <button id="btn-open-create-key" class="btn btn-primary">
+            + Create Key
+          </button>
+        </div>
+      </section>
 
-    <!-- Metrics Overview Grid -->
-    <div class="metrics-grid">
-      <!-- Spendable AI Wallet -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-label">AI Wallet Balance</span>
-          <span class="tier-badge {% if active_project.tier != 'free' %}paid{% endif %}">LIVE</span>
-        </div>
-        <div class="metric-value mono">
-          {% if wallet %}{{ "{:,.2f}".format(wallet.balance_cents / 100) }} {{ wallet.currency }}{% else %}{{ balance_formatted }}{% endif %}
-        </div>
-        <div class="metric-sub">Deducted on LLM inference</div>
-      </div>
+      <!-- Onboarding Section (3-Step Checklist) -->
+      <section id="onboarding-section" aria-label="Guided Onboarding"></section>
 
-      <!-- Circuit Breaker -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-label">Circuit Breaker</span>
-          <span class="badge-status active">ARMED</span>
-        </div>
-        <div class="metric-value mono" style="color:var(--success);">
-          FAIL-CLOSED
-        </div>
-        <div class="metric-sub">Max 50 steps / burst velocity limit</div>
-      </div>
+      <!-- Dashboard 3 Tabs Nav -->
+      <nav class="tabs-nav" aria-label="Dashboard views">
+        <button class="tab-btn active" data-tab="keys" type="button">
+          API Keys <span class="tab-count-badge" id="keys-count-badge">2</span>
+        </button>
+        <button class="tab-btn" data-tab="runs" type="button">
+          Runs <span class="tab-count-badge" id="runs-count-badge">5</span>
+        </button>
+        <button class="tab-btn" data-tab="usage" type="button">
+          Usage
+        </button>
+      </nav>
 
-      <!-- Hard Exposure Cap -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-label">Run Budget Cap</span>
-          <span class="id-pill">ACTIVE</span>
-        </div>
-        <div class="metric-value mono">
-          $1.00 USD
-        </div>
-        <div class="metric-sub">
-          Default ceiling per agent trajectory
-        </div>
-      </div>
-
-      <!-- Runaway Guard Status -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-label">Runaway Guard</span>
-          <span class="id-pill">ONLINE</span>
-        </div>
-        <div class="metric-value" style="font-size:18px; margin-top:2px;">
-          <span class="badge-status active">PROTECTED</span>
-        </div>
-        <div class="metric-sub">
-          Loop, spin &amp; tool repetition protection
-        </div>
-      </div>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <div class="tabs-bar">
-      <button class="tab-item active" onclick="switchDashboardTab('tab-keys', this)">API Keys</button>
-      <button class="tab-item" onclick="switchDashboardTab('tab-runs', this)">Agent Runs &amp; Guardrails</button>
-      <button class="tab-item" onclick="switchDashboardTab('tab-wallet', this)">Workspace Balance &amp; Ledger</button>
-      <button class="tab-item" onclick="switchDashboardTab('tab-quickstart', this)">Integration &amp; SDK</button>
-    </div>
-
-    <!-- ===================================================================
-         TAB 1: API KEYS VAULT
-         =================================================================== -->
-    <div id="tab-keys" class="tab-pane active">
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">API Keys</h2>
-            <p class="panel-desc">Authentication keys used to proxy LLM requests through SpendGuard.</p>
+      <!-- TAB 1: API KEYS -->
+      <section id="tab-keys" class="tab-content active" aria-labelledby="tab-keys-btn">
+        <div class="table-container">
+          <div class="table-toolbar">
+            <span class="toolbar-title">Active &amp; Historical API Keys</span>
+            <span style="font-size: 0.78rem; color: var(--color-text-muted);">
+              Secret keys are SHA-256 hashed and shown only once at creation.
+            </span>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openModal('modal-key')">+ Create Key</button>
-        </div>
 
-        <div class="table-wrap">
-          {% if keys and keys|length > 0 %}
           <table class="data-table">
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Secret Prefix</th>
+                <th>Key</th>
                 <th>Created</th>
                 <th>Last Used</th>
                 <th>Status</th>
-                <th style="text-align:right;">Actions</th>
+                <th>Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {% for k in keys %}
-              <tr>
-                <td style="font-weight:600;">{{ k.name }}</td>
-                <td><span class="id-pill mono">{{ k.prefix }}</span></td>
-                <td style="color:var(--text-muted);">{{ k.created_at.strftime('%b %d, %Y') if k.created_at else 'Just now' }}</td>
-                <td style="color:var(--text-muted);">{{ k.last_used_at.strftime('%b %d, %H:%M') if k.last_used_at else 'Never' }}</td>
-                <td>
-                  {% if k.is_active and not k.revoked_at %}
-                    <span class="badge-status active">Active</span>
-                  {% else %}
-                    <span class="badge-status revoked">Revoked</span>
-                  {% endif %}
-                </td>
-                <td style="text-align:right;">
-                  {% if k.is_active and not k.revoked_at %}
-                    <button class="btn btn-danger btn-sm" onclick="revokeKey('{{ k.id }}', '{{ k.name }}')">Revoke</button>
-                  {% else %}
-                    <span style="color:var(--text-dim); font-size:12px;">Inactive</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
+            <tbody id="keys-table-body">
+              <!-- Dynamically populated by dashboard.js -->
             </tbody>
           </table>
-          {% else %}
-          <div style="padding:32px; text-align:center; color:var(--text-muted);">
-            No API keys found. Click "+ Create Key" to generate a gateway token.
+        </div>
+      </section>
+
+      <!-- TAB 2: RUNS -->
+      <section id="tab-runs" class="tab-content" aria-labelledby="tab-runs-btn">
+        <div class="table-container">
+          <div class="table-toolbar">
+            <span class="toolbar-title">Agent Trajectories</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label for="runs-status-filter" style="font-size: 0.78rem; font-weight: 700; color: var(--color-text-muted);">Status:</label>
+              <select id="runs-status-filter" class="filter-select">
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="budget_exceeded">Budget Exceeded</option>
+                <option value="runaway_aborted">Runaway Tripped</option>
+                <option value="aborted">Aborted</option>
+              </select>
+            </div>
           </div>
-          {% endif %}
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Agent ID</th>
+                <th>Status</th>
+                <th>Spent</th>
+                <th>Budget</th>
+                <th>Remaining</th>
+                <th>Steps</th>
+                <th>Started</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="runs-table-body">
+              <!-- Dynamically populated by dashboard.js -->
+            </tbody>
+          </table>
+
+          <div class="pagination-bar">
+            <span id="runs-page-display" class="mono">Page 1 of 1</span>
+            <div style="display: flex; gap: 0.4rem;">
+              <button id="runs-prev-page-btn" class="btn btn-sm" disabled>&larr; Prev</button>
+              <button id="runs-next-page-btn" class="btn btn-sm" disabled>Next &rarr;</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: USAGE -->
+      <section id="tab-usage" class="tab-content" aria-labelledby="tab-usage-btn">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+          <h2 style="font-size: 1.15rem;">Spend &amp; Consumption Metrics</h2>
+          <select id="usage-period-select" class="filter-select">
+            <option value="7d">Last 7 Days</option>
+            <option value="month">This Month</option>
+          </select>
+        </div>
+
+        <!-- 4 Metric Cards -->
+        <div id="usage-grid-container" class="usage-grid"></div>
+
+        <!-- Daily Spend SVG/CSS Bar Chart -->
+        <div id="usage-chart-container"></div>
+      </section>
+
+    </main>
+
+    <!-- ====================================================================
+         MODALS
+         ==================================================================== -->
+
+    <!-- Modal 1: Create Key Form -->
+    <div id="create-key-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-create-title">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 id="modal-create-title">Create New API Key</h3>
+          <button class="modal-close-btn" type="button" aria-label="Close modal">&times;</button>
+        </div>
+        <form id="create-key-form">
+          <div class="form-group">
+            <label class="form-label" for="create-key-name-input">Key Identifier / Name</label>
+            <input
+              id="create-key-name-input"
+              class="form-input"
+              type="text"
+              placeholder="e.g. Research Agent Cluster"
+              required
+              maxlength="64"
+            />
+          </div>
+          <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 1.25rem;">
+            This key will enforce trajectory limits for all agent runs authenticated under its prefix.
+          </p>
+          <div style="display: flex; justify-content: flex-end; gap: 0.65rem;">
+            <button class="btn btn-sm modal-close-btn" type="button">Cancel</button>
+            <button id="submit-create-key-btn" class="btn btn-primary btn-sm" type="submit">
+              Generate Key
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal 2: Show-Once Key Security View -->
+    <div id="show-once-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-show-once-title">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 id="modal-show-once-title">Save Your Secret Key</h3>
+        </div>
+        
+        <div class="show-once-warning">
+          ⚠️ Please save this secret key now. You will not be able to see it again!
+        </div>
+
+        <div class="key-display-box">
+          <span id="show-once-raw-key" class="key-display-val">sk-live-...</span>
+          <button id="copy-raw-key-btn" class="code-copy-btn" type="button">Copy Key</button>
+        </div>
+
+        <label class="checkbox-label" for="saved-key-checkbox">
+          <input id="saved-key-checkbox" class="checkbox-input" type="checkbox" />
+          <span>I have copied and saved my secret key in a secure password manager or environment file.</span>
+        </label>
+
+        <div style="display: flex; justify-content: flex-end;">
+          <button id="dismiss-show-once-btn" class="btn btn-primary btn-sm" type="button" disabled>
+            I've Saved It &bull; Continue
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- ===================================================================
-         TAB 2: AGENT RUNS & GUARDRAILS
-         =================================================================== -->
-    <div id="tab-runs" class="tab-pane">
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Agent Trajectories &amp; Run Budgets</h2>
-            <p class="panel-desc">Real-time spend boundaries, runaway loop detection, and trajectory status.</p>
-          </div>
+    <!-- Modal 3: Revoke Confirmation -->
+    <div id="revoke-confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-revoke-title">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 id="modal-revoke-title" style="color: var(--color-red);">Revoke API Key</h3>
+          <button class="modal-close-btn" type="button" aria-label="Close modal">&times;</button>
         </div>
-
-        <div class="panel-body">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-            <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
-              <h3 style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Active Circuit Breakers</h3>
-              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);">Max Trajectory Steps</span>
-                <span class="mono" style="font-weight:600;">50 steps / run</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);">Velocity Spin Threshold</span>
-                <span class="mono" style="font-weight:600;">15 req / 10s</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:6px 0;">
-                <span style="color:var(--text-muted);">Loop Heuristics</span>
-                <span class="badge-status active">ENABLED</span>
-              </div>
-            </div>
-
-            <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
-              <h3 style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Default Run Budgets</h3>
-              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);">Default Ceiling</span>
-                <span class="mono" style="font-weight:600;">$1.00 USD</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--text-muted);">Pre-Flight Reserve</span>
-                <span class="badge-status active">REDIS ATOMIC</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:6px 0;">
-                <span style="color:var(--text-muted);">True-Up Reconcile</span>
-                <span class="badge-status active">LIVE ON FINISH</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===================================================================
-         TAB 3: AI WALLET & FINANCIAL LEDGER
-         =================================================================== -->
-    <div id="tab-wallet" class="tab-pane">
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Spend Exposure &amp; Controls</h2>
-            <p class="panel-desc">Real-money spendable wallet balance and hard exposure limits.</p>
-          </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn btn-secondary btn-sm" onclick="openModal('modal-exposure')">Configure Cap</button>
-            <button class="btn btn-primary btn-sm" onclick="openModal('modal-topup')">+ Top Up</button>
-          </div>
-        </div>
-
-        <div class="panel-body">
-          <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; margin-bottom:20px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:12.5px; font-weight:600;">
-              <span>Exposure Limit Usage</span>
-              <span class="mono">
-                {% if wallet %}{{ "{:,.2f}".format(wallet.exposure_used_cents / 100) }} {{ wallet.currency }}{% else %}$0.00{% endif %}
-                /
-                {% if wallet and wallet.exposure_cap_cents %}{{ "{:,.2f}".format(wallet.exposure_cap_cents / 100) }} {{ wallet.currency }}{% else %}Unlimited{% endif %}
-              </span>
-            </div>
-            <div style="width:100%; height:8px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-              {% set pct = ((wallet.exposure_used_cents / wallet.exposure_cap_cents) * 100) if (wallet and wallet.exposure_cap_cents and wallet.exposure_cap_cents > 0) else 0 %}
-              <div style="width:{{ [pct, 100] | min }}%; height:100%; background:var(--primary); border-radius:999px;"></div>
-            </div>
-          </div>
-
-          <h3 style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:12px;">Financial Audit Ledger</h3>
-          <div class="table-wrap">
-            {% if ledger_entries and ledger_entries|length > 0 %}
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Entry Type</th>
-                  <th>Movement</th>
-                  <th>Upstream Cost</th>
-                  <th>Platform Cut</th>
-                  <th>Balance After</th>
-                  <th>Reference</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for e in ledger_entries %}
-                <tr>
-                  <td class="mono" style="color:var(--text-muted);">{{ e.created_at.strftime('%b %d, %H:%M:%S') }}</td>
-                  <td><span class="id-pill">{{ e.entry_type }}</span></td>
-                  <td>
-                    <span class="mono" style="font-weight:600; color:{% if e.wallet_delta_cents >= 0 %}var(--success){% else %}var(--danger){% endif %};">
-                      {% if e.wallet_delta_cents >= 0 %}+{% endif %}{{ "{:,.2f}".format(e.wallet_delta_cents / 100) }} {{ e.currency }}
-                    </span>
-                  </td>
-                  <td class="mono" style="color:var(--text-muted);">{{ "{:,.2f}".format(e.upstream_provider_cost_cents / 100) }} {{ e.currency }}</td>
-                  <td class="mono" style="color:var(--text-muted);">{{ "{:,.2f}".format(e.platform_revenue_delta_cents / 100) }} {{ e.currency }}</td>
-                  <td class="mono" style="font-weight:600;">{{ "{:,.2f}".format(e.balance_after_cents / 100) }} {{ e.currency }}</td>
-                  <td style="color:var(--text-muted); font-size:12px;">{{ e.description or e.reference_id }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            {% else %}
-            <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:13px;">
-              No ledger entries recorded yet.
-            </div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===================================================================
-         TAB 4: INTEGRATION & SDK
-         =================================================================== -->
-    <div id="tab-quickstart" class="tab-pane">
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">SDK Quickstart</h2>
-            <p class="panel-desc">Point OpenAI client libraries directly to your SpendGuard endpoint.</p>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="code-window">
-            <div class="code-nav">
-              <div class="code-lang-tabs">
-                <button class="code-lang-btn active" onclick="switchSnippet('python', this)">Python</button>
-                <button class="code-lang-btn" onclick="switchSnippet('node', this)">Node.js</button>
-                <button class="code-lang-btn" onclick="switchSnippet('curl', this)">cURL</button>
-              </div>
-              <button class="btn btn-secondary btn-sm" style="background:#27272a; color:#fff; border:none;" onclick="copyActiveCode()">Copy</button>
-            </div>
-            <pre class="code-block active" id="snippet-python"><span class="c-kw">from</span> openai <span class="c-kw">import</span> OpenAI
-
-client = OpenAI(
-    <span class="c-kw">base_url</span>=<span class="c-str">"{{ gateway_url }}"</span>,
-    <span class="c-kw">api_key</span> =<span class="c-str">"<span class="snippet-key-ph">YOUR_SPENDGUARD_API_KEY</span>"</span>,
-)
-
-response = client.chat.completions.create(
-    <span class="c-kw">model</span>=<span class="c-str">"gpt-4o-mini"</span>,
-    <span class="c-kw">messages</span>=[{<span class="c-str">"role"</span>: <span class="c-str">"user"</span>, <span class="c-str">"content"</span>: <span class="c-str">"Hello SpendGuard!"</span>}],
-    <span class="c-kw">extra_headers</span>={<span class="c-str">"X-End-User-Id"</span>: <span class="c-str">"customer_123"</span>},
-)
-print(response.choices[0].message.content)</pre>
-
-            <pre class="code-block" id="snippet-node"><span class="c-kw">import</span> OpenAI <span class="c-kw">from</span> <span class="c-str">"openai"</span>;
-
-<span class="c-kw">const</span> client = <span class="c-kw">new</span> OpenAI({
-  <span class="c-kw">baseURL</span>: <span class="c-str">"{{ gateway_url }}"</span>,
-  <span class="c-kw">apiKey</span>:  <span class="c-str">"<span class="snippet-key-ph">YOUR_SPENDGUARD_API_KEY</span>"</span>,
-});
-
-<span class="c-kw">const</span> response = <span class="c-kw">await</span> client.chat.completions.create({
-  <span class="c-kw">model</span>: <span class="c-str">"gpt-4o-mini"</span>,
-  <span class="c-kw">messages</span>: [{ <span class="c-kw">role</span>: <span class="c-str">"user"</span>, <span class="c-kw">content</span>: <span class="c-str">"Hello SpendGuard!"</span> }],
-}, {
-  <span class="c-kw">headers</span>: { <span class="c-str">"X-End-User-Id"</span>: <span class="c-str">"customer_123"</span> },
-});
-console.log(response.choices[0].message.content);</pre>
-
-            <pre class="code-block" id="snippet-curl">curl -X POST <span class="c-str">"{{ gateway_url }}/chat/completions"</span> \
-  -H <span class="c-str">"Authorization: Bearer <span class="snippet-key-ph">YOUR_SPENDGUARD_API_KEY</span>"</span> \
-  -H <span class="c-str">"Content-Type: application/json"</span> \
-  -H <span class="c-str">"X-End-User-Id: customer_123"</span> \
-  -d <span class="c-str">'{
-    "model": "gpt-4o-mini",
-    "messages": [{"role": "user", "content": "Hello SpendGuard!"}]
-  }'</span></pre>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===================================================================
-         TAB 5: UPGRADE PLANS
-         =================================================================== -->
-    {% if active_project.tier == 'free' %}
-    <div id="tab-upgrade" class="tab-pane">
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Developer Subscription Plans</h2>
-            <p class="panel-desc">Unlock real-money spendable AI wallets, exposure caps, and automated split settlements.</p>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
-            {% for plan in plans %}
-            <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; display:flex; flex-direction:column; justify-content:space-between;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-weight:700; font-size:15px;">{{ plan.display_name }}</span>
-                  <span class="tier-badge paid">{{ plan.tier }}</span>
-                </div>
-                <div class="mono" style="font-size:20px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">
-                  {{ "{:,.2f}".format(plan.charge_amount_cents / 100) }} <span style="font-size:12px; color:var(--text-muted);">{{ plan.currency }}</span>
-                </div>
-                <p style="font-size:12.5px; color:var(--text-secondary); margin-bottom:14px;">{{ plan.description }}</p>
-
-                <div style="background:#ffffff; border:1px solid var(--border); border-radius:var(--radius-md); padding:10px; font-size:12px; margin-bottom:16px;">
-                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span style="color:var(--text-muted);">Spendable AI Wallet:</span>
-                    <strong class="mono">{{ "{:,.2f}".format(plan.wallet_allocation_cents / 100) }} {{ plan.currency }}</strong>
-                  </div>
-                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span style="color:var(--text-muted);">Developer Share:</span>
-                    <strong class="mono" style="color:var(--success);">{{ "{:,.2f}".format(plan.developer_share_cents / 100) }} {{ plan.currency }}</strong>
-                  </div>
-                  <div style="display:flex; justify-content:space-between;">
-                    <span style="color:var(--text-muted);">Platform Cut:</span>
-                    <span class="mono">{{ "{:,.2f}".format(plan.platform_fee_cents / 100) }} {{ plan.currency }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <button class="btn btn-primary" style="width:100%;" onclick="activatePlan('{{ plan.plan_id }}', '{{ plan.display_name }}')">
-                Activate Plan
-              </button>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-  </main>
-</div>
-
-<!-- ===================================================================
-     MODALS
-     =================================================================== -->
-
-<!-- Modal: Create Key -->
-<div class="modal-overlay" id="modal-key" onclick="if(event.target===this) closeModal('modal-key')">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h2 class="modal-title">Create Secret Key</h2>
-      <button class="modal-close" onclick="closeModal('modal-key')">&times;</button>
-    </div>
-    <form onsubmit="handleKeySubmit(event)">
-      <div class="modal-body">
-        <div class="form-field">
-          <label class="form-label">Key Name / Description</label>
-          <input type="text" id="key-name-val" class="form-input" placeholder="e.g. Production Backend" required autofocus />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-key')">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="btn-gen-key">Create Key</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Modal: Top Up Wallet -->
-<div class="modal-overlay" id="modal-topup" onclick="if(event.target===this) closeModal('modal-topup')">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h2 class="modal-title">Top Up Workspace Balance</h2>
-      <button class="modal-close" onclick="closeModal('modal-topup')">&times;</button>
-    </div>
-    <form onsubmit="handleTopUp(event)">
-      <div class="modal-body">
-        <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
-          Fund real-money balance used for agent token completions and reservations.
+        <p style="font-size: 0.88rem; margin-bottom: 1rem;">
+          Are you sure you want to revoke <strong id="revoke-key-name-display">this key</strong>?
         </p>
-        <div class="form-field">
-          <label class="form-label">Amount in USD (Cents)</label>
-          <input type="number" id="topup-amt" class="form-input" placeholder="1000 ($10.00)" min="50" required autofocus />
+        <div style="background-color: var(--color-red-bg); border: 1px solid var(--color-red-border); color: var(--color-red); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); font-size: 0.8rem; margin-bottom: 1.25rem;">
+          Any active autonomous agent trajectories currently authenticating with this key will immediately be rejected with HTTP 401. This cannot be undone.
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.65rem;">
+          <button id="cancel-revoke-btn" class="btn btn-sm" type="button">Cancel</button>
+          <button id="confirm-revoke-btn" class="btn btn-danger btn-sm" type="button">
+            Yes, Revoke Key
+          </button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-topup')">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="btn-submit-topup">Add Funds</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Modal: Exposure Cap -->
-<div class="modal-overlay" id="modal-exposure" onclick="if(event.target===this) closeModal('modal-exposure')">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h2 class="modal-title">Configure Hard Spend Cap</h2>
-      <button class="modal-close" onclick="closeModal('modal-exposure')">&times;</button>
     </div>
-    <form onsubmit="handleExposure(event)">
-      <div class="modal-body">
-        <div class="form-field">
-          <label class="form-label">Hard Spend Cap (USD Cents, blank for unlimited)</label>
-          <input type="number" id="exp-cap-val" class="form-input" placeholder="e.g. 5000 ($50.00)" value="{% if wallet and wallet.exposure_cap_cents %}{{ wallet.exposure_cap_cents }}{% endif %}" />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-exposure')">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="btn-save-exp">Save Settings</button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<!-- Modal: Create Workspace -->
-<div class="modal-overlay" id="modal-workspace" onclick="if(event.target===this) closeModal('modal-workspace')">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h2 class="modal-title">Create Workspace</h2>
-      <button class="modal-close" onclick="closeModal('modal-workspace')">&times;</button>
+    <!-- ====================================================================
+         SLIDE-OVER DRAWER (Run Trajectory Inspection)
+         ==================================================================== -->
+    <div id="run-drawer" class="drawer-overlay" role="dialog" aria-modal="true" aria-labelledby="drawer-run-title">
+      <aside class="drawer-panel">
+        <div class="drawer-header">
+          <h3 id="drawer-run-title" style="font-size: 1.05rem;">Run Trajectory</h3>
+          <button id="close-drawer-btn" class="modal-close-btn" type="button" aria-label="Close drawer">&times;</button>
+        </div>
+        <div id="drawer-run-body" class="drawer-body">
+          <!-- Populated by dashboard.js -->
+        </div>
+        <div class="drawer-footer">
+          <button id="drawer-abort-btn" class="btn btn-danger btn-sm" type="button">
+            Emergency Abort
+          </button>
+        </div>
+      </aside>
     </div>
-    <form onsubmit="handleWorkspaceSubmit(event)">
-      <div class="modal-body">
-        <div class="form-field">
-          <label class="form-label">Workspace Name</label>
-          <input type="text" id="ws-name-val" class="form-input" placeholder="e.g. Production App" required autofocus />
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-workspace')">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="btn-create-ws">Create</button>
-      </div>
-    </form>
+
+    <!-- Toast Notification -->
+    <div id="toast-element" class="toast-msg"></div>
+
   </div>
-</div>
 
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<!-- JavaScript Core -->
-<script>
-  const ACTIVE_PROJECT_ID = "{{ active_project.project_id }}";
-
-  function showToast(msg) {
-    const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.classList.add("show");
-    setTimeout(() => t.classList.remove("show"), 2600);
-  }
-
-  function copyText(text, msg = "Copied to clipboard") {
-    if (!text) return;
-    navigator.clipboard.writeText(text).then(() => showToast(msg));
-  }
-
-  function copyGeneratedKey() {
-    const k = document.getElementById("displayed-raw-key").value;
-    copyText(k, "API Key copied!");
-  }
-
-  function openModal(id) { document.getElementById(id).classList.add("open"); }
-  function closeModal(id) { document.getElementById(id).classList.remove("open"); }
-
-  // Keyboard shortcut to close modals with Escape
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      document.querySelectorAll(".modal-overlay.open").forEach(m => m.classList.remove("open"));
-    }
-  });
-
-  function switchDashboardTab(tabId, el) {
-    document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
-    document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
-    document.getElementById(tabId).classList.add("active");
-    if (el) el.classList.add("active");
-  }
-
-  function switchSnippet(lang, btn) {
-    document.querySelectorAll(".code-lang-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".code-block").forEach(c => c.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(`snippet-${lang}`).classList.add("active");
-  }
-
-  function copyActiveCode() {
-    const act = document.querySelector(".code-block.active");
-    if (act) copyText(act.innerText, "Snippet copied to clipboard");
-  }
-
-  async function handleKeySubmit(e) {
-    e.preventDefault();
-    const name = document.getElementById("key-name-val").value.trim() || "Production Key";
-    const btn = document.getElementById("btn-gen-key");
-    btn.disabled = true; btn.textContent = "Creating...";
-
-    try {
-      const resp = await fetch("/api/keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID, name }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Key creation failed");
-      closeModal("modal-key");
-
-      document.getElementById("displayed-raw-key").value = data.raw_key;
-      document.getElementById("new-key-banner").style.display = "block";
-      document.querySelectorAll(".snippet-key-ph").forEach(el => el.textContent = data.raw_key);
-      showToast("API Key created! Save it immediately.");
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      btn.disabled = false; btn.textContent = "Create Key";
-    }
-  }
-
-  async function revokeKey(keyId, keyName) {
-    if (!confirm(`Revoke key "${keyName}"? All downstream traffic using it will fail immediately.`)) return;
-
-    try {
-      const resp = await fetch(`/api/keys/${keyId}/revoke?project_id=${ACTIVE_PROJECT_ID}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Revocation failed");
-      showToast("Key revoked");
-      setTimeout(() => window.location.reload(), 500);
-    } catch (err) {
-      showToast(err.message);
-    }
-  }
-
-  async function handleTopUp(e) {
-    e.preventDefault();
-    const val = document.getElementById("topup-amt").value;
-    const btn = document.getElementById("btn-submit-topup");
-    btn.disabled = true; btn.textContent = "Processing...";
-
-    try {
-      const resp = await fetch("/api/wallets/topup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID, amount_cents: parseInt(val, 10) }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Top-up failed");
-      closeModal("modal-topup");
-      showToast(`Added $${(parseInt(val, 10) / 100).toFixed(2)} USD to workspace balance!`);
-      setTimeout(() => window.location.reload(), 800);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      btn.disabled = false; btn.textContent = "Add Funds";
-    }
-  }
-
-  async function handleExposure(e) {
-    e.preventDefault();
-    const val = document.getElementById("exp-cap-val").value.trim();
-    const devPays = document.getElementById("exp-dev-pays").checked;
-    const btn = document.getElementById("btn-save-exp");
-    btn.disabled = true; btn.textContent = "Saving...";
-
-    try {
-      const resp = await fetch("/api/subscriptions/exposure-cap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project_id: ACTIVE_PROJECT_ID,
-          exposure_cap_cents: val ? parseInt(val, 10) * 100 : null,
-          developer_pays_upstream_cost: devPays,
-        }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Failed to save exposure");
-      closeModal("modal-exposure");
-      showToast("Spend exposure settings updated!");
-      setTimeout(() => window.location.reload(), 600);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      btn.disabled = false; btn.textContent = "Save Settings";
-    }
-  }
-
-  async function activatePlan(planId, planName) {
-    if (!confirm(`Activate ${planName}?`)) return;
-
-    try {
-      showToast(`Activating ${planName}...`);
-      const resp = await fetch("/api/subscriptions/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: ACTIVE_PROJECT_ID, plan_id: planId }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Checkout failed");
-
-      const conf = await fetch("/api/subscriptions/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: data.session_id }),
-      });
-      const confData = await conf.json();
-      if (!conf.ok) throw new Error(confData.error || "Confirmation failed");
-
-      showToast(`Activated ${planName}!`);
-      setTimeout(() => window.location.reload(), 800);
-    } catch (err) {
-      showToast(err.message);
-    }
-  }
-
-  async function handleWorkspaceSubmit(e) {
-    e.preventDefault();
-    const name = document.getElementById("ws-name-val").value.trim();
-    if (!name) return;
-    const btn = document.getElementById("btn-create-ws");
-    btn.disabled = true; btn.textContent = "Creating...";
-
-    try {
-      const resp = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Workspace creation failed");
-      closeModal("modal-workspace");
-      showToast("Workspace created!");
-      setTimeout(() => window.location.href = `/dashboard?project_id=${data.project.project_id}`, 600);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      btn.disabled = false; btn.textContent = "Create";
-    }
-  }
-</script>
+  <!-- Client-Side Controller -->
+  <script type="module" src="/static/js/dashboard.js"></script>
 </body>
 </html>

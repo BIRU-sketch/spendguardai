@@ -1,13 +1,34 @@
 {
-  "name": "spendguard",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "sg-run",
+  "version": "2.0.0",
+  "description": "sg-run — Agent-Native Hard Cost Control Layer SDK & Gateway",
+  "main": "./packages/sdk/dist/cjs/index.js",
+  "module": "./packages/sdk/dist/esm/index.js",
+  "types": "./packages/sdk/dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./packages/sdk/dist/types/index.d.ts",
+      "import": "./packages/sdk/dist/esm/index.js",
+      "require": "./packages/sdk/dist/cjs/index.js"
+    },
+    "./fetch": {
+      "types": "./packages/sdk/dist/types/proxy/fetch.d.ts",
+      "import": "./packages/sdk/dist/esm/proxy/fetch.js",
+      "require": "./packages/sdk/dist/cjs/proxy/fetch.js"
+    },
+    "./openai": {
+      "types": "./packages/sdk/dist/types/wrappers/openai.d.ts",
+      "import": "./packages/sdk/dist/esm/wrappers/openai.js",
+      "require": "./packages/sdk/dist/cjs/wrappers/openai.js"
+    }
+  },
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Use npm run test:gateway to run the local integration smoke test\"",
+    "build:sdk": "node node_modules/typescript/lib/tsc.js -p packages/sdk/tsconfig.cjs.json && node node_modules/typescript/lib/tsc.js -p packages/sdk/tsconfig.esm.json && node node_modules/typescript/lib/tsc.js -p packages/sdk/tsconfig.types.json && echo '{\"type\": \"commonjs\"}' > packages/sdk/dist/cjs/package.json && echo '{\"type\": \"module\"}' > packages/sdk/dist/esm/package.json",
+    "test": "npm run test:sdk && npm run test:gateway",
+    "test:sdk": "node test_sdk.mjs",
     "test:gateway": "node test_gateway.mjs"
   },
   "repository": {
@@ -25,5 +46,9 @@
   "dependencies": {
     "openai": "^7.15.0",
     "stripe": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^5.9.3"
   }
 }

@@ -1,0 +1,59 @@
+{
+  "name": "sg-run",
+  "version": "2.0.0",
+  "description": "Agent-native hard cost control layer SDK for autonomous AI systems",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./fetch": {
+      "types": "./dist/types/proxy/fetch.d.ts",
+      "import": "./dist/esm/proxy/fetch.js",
+      "require": "./dist/cjs/proxy/fetch.js"
+    },
+    "./openai": {
+      "types": "./dist/types/wrappers/openai.d.ts",
+      "import": "./dist/esm/wrappers/openai.js",
+      "require": "./dist/cjs/wrappers/openai.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:types": "tsc -p tsconfig.types.json",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "spendguard",
+    "ai-agent",
+    "llm-gateway",
+    "cost-control",
+    "budget",
+    "runaway-loop",
+    "openai",
+    "guardrails",
+    "vercel-ai-sdk",
+    "langchain"
+  ],
+  "author": "SpendGuard AI",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "openai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "openai": {
+      "optional": true
+    }
+  }
+}
